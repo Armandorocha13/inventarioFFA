@@ -2,7 +2,7 @@
  * validacao.js — Módulo de Validação de Entradas do SGI
  * ─────────────────────────────────────────────────────────────────────────────
  * Centraliza todas as regras de validação para garantir que nenhum dado
- * inválido chegue ao backend (ou aos dados mockados).
+ * inválido chegue ao backend (ou à fonte de dados).
  *
  * Todas as funções retornam um objeto { valido: boolean, erro?: string }
  * para facilitar o uso na UI (exibir mensagens de erro específicas).

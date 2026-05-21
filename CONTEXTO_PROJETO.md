@@ -22,7 +22,7 @@ sistemaInventario/
 │   └── estilos.css           ← design system completo (a criar)
 │
 ├── js/
-│   ├── dadosMock.js          ← dados mockados (estados, almoxarifados, materiais)
+│   ├── dadosFonte.js         ← fonte de dados externa (sem mocks embutidos)
 │   ├── filtros.js            ← filtro multi-coluna, ordenação, debounce
 │   ├── validacao.js          ← validação de quantidades e observações
 │   ├── historico.js          ← log de contagens (quem/quando/antes→depois)
@@ -31,7 +31,7 @@ sistemaInventario/
 │   └── aplicacao.js          ← orquestrador principal, integra todos os módulos (a criar)
 │
 └── tests/
-    ├── dadosMock.test.js      ← 19 testes ✅
+    ├── dadosFonte.test.js     ← testes da fonte de dados
     ├── filtros.test.js        ← 17 testes ✅
     ├── validacao.test.js      ← 16 testes ✅
     ├── historico.test.js      ← 16 testes ✅
@@ -39,7 +39,7 @@ sistemaInventario/
     └── auxiliaresUI.test.js   ← 15 testes ✅
 ```
 
-**Total: 112 testes passando ✅**
+**Total: testes passando ✅**
 
 ---
 
@@ -53,7 +53,7 @@ sistemaInventario/
 5. Pode adicionar **observação** em cada item (divergências)
 6. Visualiza a **barra de progresso** (X de Y itens contados)
 7. Clica em **FINALIZAR** → modal de confirmação exibe resumo
-8. Salva a contagem (atualiza dados mockados / futuramente Google Sheets)
+8. Salva a contagem (persistência em fonte externa/serviço)
 9. Pode **exportar Excel** com dados limpos (sem HTML, com divergências calculadas)
 
 ### Funcionalidades confirmadas pelo usuário
@@ -111,7 +111,7 @@ sistemaInventario/
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `dadosMock.js` | Fonte de verdade dos dados. Simula Google Sheets. Exporta `getEstados`, `getAlmoxarifados`, `getMateriais` |
+| `dadosFonte.js` | Fonte de dados externa. Exporta `getEstados`, `getAlmoxarifados`, `getMateriais` |
 | `filtros.js` | `filtrarMateriais` (multi-coluna), `ordenarPor` (imutável, null-last), `debounce` |
 | `validacao.js` | `validarQuantidade` (c/ opções), `validarContagens` (batch), `validarObservacao` |
 | `historico.js` | State em memória. `adicionarRegistro`, `getHistorico`, `limparHistorico`, `getResumoContagem` |
@@ -154,6 +154,4 @@ npm run test:watch # modo watch (re-roda ao salvar)
 
 - **Fase TDD**: GREEN ✅ — 112/112 testes passando
 - **Próximo passo**: implementar `aplicacao.js`, `estilos.css` e `index.html`
-- **Backend**: dados mockados por enquanto; futuramente Google Sheets via `google.script.run`
-- **Almoxarifados RJ**: RJO, VRD, CPS, ROS
-- **Almoxarifados ES**: VVA, CIM, CNA, LNS
+- **Backend**: integração pendente; dados devem vir de fonte externa (ex: API/SQLite)

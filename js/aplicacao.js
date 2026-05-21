@@ -5,7 +5,7 @@
  * Gerencia o estado da sessão atual (almoxarifado selecionado, contagens preenchidas).
  */
 
-import { getEstados, getAlmoxarifados, getMateriais } from './dadosMock.js';
+import { getEstados, getAlmoxarifados, getMateriais } from './dadosFonte.js';
 import { filtrarMateriais, ordenarPor, debounce } from './filtros.js';
 import { validarContagens } from './validacao.js';
 import { adicionarRegistro, limparHistorico } from './historico.js';
@@ -164,6 +164,11 @@ function sincronizarFiltrosApp(uf, codigoAlmox) {
 
   selectAlmox2.innerHTML = '<option value="">Selecione o almoxarifado...</option>';
   if (uf) {
+    const optTodos = document.createElement('option');
+    optTodos.value = 'todos';
+    optTodos.textContent = 'Todos os almoxarifados';
+    selectAlmox2.appendChild(optTodos);
+
     const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
     almoxs.forEach(a => {
       const opt = document.createElement('option');
@@ -1289,8 +1294,8 @@ function salvarContagens() {
 
     estado.contagens = {};
     
-    const uf = document.getElementById('uf').value;
-    const almox = document.getElementById('almox').value;
+    const uf = document.getElementById('uf2')?.value || document.getElementById('uf')?.value || 'todos';
+    const almox = document.getElementById('almox2')?.value || document.getElementById('almox')?.value || 'todos';
     const chaveRascunho = getChaveRascunho(uf, almox);
     if (chaveRascunho) {
       localStorage.removeItem(chaveRascunho);
@@ -1327,7 +1332,7 @@ function exportarParaExcel() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventario");
     
-    const almox = document.getElementById('almox').value;
+    const almox = document.getElementById('almox2')?.value || document.getElementById('almox')?.value || 'todos';
     const nomeArquivo = gerarNomeArquivo(almox);
     
     XLSX.writeFile(wb, nomeArquivo);
@@ -1392,4 +1397,3 @@ function atualizarIconeTema(tema) {
     icon.className = 'fas fa-moon';
   }
 }
-
