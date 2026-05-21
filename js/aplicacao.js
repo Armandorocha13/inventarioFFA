@@ -49,48 +49,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Tela 1: Landing (seleção de base) ─────────────────────────────────────────
 
 function inicializarLanding() {
-  const selectUf    = document.getElementById('uf');
-  const selectAlmox = document.getElementById('almox');
+  const selectUf = document.getElementById('uf');
 
   popularUFsEm(selectUf);
 
   selectUf.addEventListener('change', (e) => {
     const uf = e.target.value;
-    selectAlmox.innerHTML = '';
-
-    if (!uf) {
-      selectAlmox.innerHTML = '<option value="">Selecione a UF primeiro</option>';
-      selectAlmox.disabled = true;
-      return;
-    }
-
-    selectAlmox.innerHTML = '<option value="">Selecione o almoxarifado...</option>';
-    const optTodos = document.createElement('option');
-    optTodos.value = 'todos';
-    optTodos.textContent = 'Todos os almoxarifados';
-    selectAlmox.appendChild(optTodos);
-
-    const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
-    almoxs.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.codigo;
-      opt.textContent = a.label;
-      selectAlmox.appendChild(opt);
-    });
-
-    selectAlmox.disabled = false;
-
-    if (uf === 'todos') {
-      selectAlmox.value = 'todos';
-      iniciarCarregamento(uf, 'todos');
-    }
-  });
-
-  selectAlmox.addEventListener('change', (e) => {
-    const codigo = e.target.value;
-    if (!codigo) return;
-    const uf = selectUf.value;
-    iniciarCarregamento(uf, codigo);
+    if (!uf) return;
+    // Passa null como almox — o picker será mostrado dentro do app
+    iniciarCarregamento(uf, null);
   });
 }
 
@@ -108,44 +75,114 @@ function iniciarCarregamento(uf, codigoAlmox) {
     loading.style.display = 'flex';
 
     setTimeout(() => {
-      carregarMateriais(uf, codigoAlmox);
-      estado.contagens = {};
-      estado.filtros = { termo: '', tipo: 'todos' };
-      estado.colunaOrdenacao = null;
-      estado.direcaoOrdenacao = 'asc';
-      estado.abaAtiva = 'contagem';
-
-      sincronizarFiltrosApp(uf, codigoAlmox);
-
       loading.classList.add('fade-out');
       setTimeout(() => {
         loading.style.display = 'none';
         loading.classList.remove('fade-out');
         app.style.display = 'block';
         inicializarApp();
-        render();
-        tentarCarregarRascunho(uf, codigoAlmox);
+
+        if (codigoAlmox) {
+          // Fluxo normal: já tem almox selecionado → carrega materiais
+          carregarMateriais(uf, codigoAlmox);
+          sincronizarFiltrosApp(uf, codigoAlmox);
+          estado.abaAtiva = 'contagem';
+          render();
+          tentarCarregarRascunho(uf, codigoAlmox);
+        } else {
+          // Fluxo novo: mostra picker de almoxarifado dentro do app
+          renderSelecionarAlmox(uf);
+        }
       }, 380);
-    }, 900);
+    }, 750);
   }, 420);
+}
+
+// ── Picker de Almoxarifado (dentro do App) ─────────────────────────────────────
+
+function renderSelecionarAlmox(uf) {
+  // Esconde filtros e desabilita tabs até selecionar almox
+  const filtersCard = document.querySelector('.app-filters');
+  if (filtersCard) filtersCard.style.display = 'none';
+
+  document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
+    b.disabled = true;
+    b.style.opacity = '0.35';
+    b.style.pointerEvents = 'none';
+  });
+
+  const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
+  const nomeUf = uf === 'todos' ? 'Todas as Bases' : `Estado: ${uf}`;
+  const container = document.getElementById('abaConteudo');
+
+  container.innerHTML = `
+    <div class="almox-picker animate-fade-in">
+      <div class="almox-picker-header">
+        <div class="almox-picker-icon"><i class="fas fa-warehouse"></i></div>
+        <h2 class="almox-picker-title">Selecione o Almoxarifado</h2>
+        <p class="almox-picker-sub">${nomeUf} &mdash; ${almoxs.length} unidade${almoxs.length !== 1 ? 's' : ''} disponível${almoxs.length !== 1 ? 'is' : ''}</p>
+      </div>
+      <div class="almox-grid">
+        ${almoxs.map(a => `
+          <button class="almox-card" data-codigo="${a.codigo}" data-uf="${uf}">
+            <div class="almox-card-icon-wrap">
+              <i class="fas fa-warehouse"></i>
+            </div>
+            <div class="almox-card-body">
+              <div class="almox-card-name">${sanitizarTexto(a.label)}</div>
+              <div class="almox-card-code">${sanitizarTexto(a.codigo)}</div>
+            </div>
+            <i class="fas fa-chevron-right almox-card-arrow"></i>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('.almox-card').forEach(card => {
+    card.addEventListener('click', () => {
+      selecionarAlmox(card.dataset.uf, card.dataset.codigo);
+    });
+  });
+}
+
+function selecionarAlmox(uf, codigoAlmox) {
+  // Reativa tabs e filtros
+  document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
+    b.disabled = false;
+    b.style.opacity = '';
+    b.style.pointerEvents = '';
+  });
+
+  const filtersCard = document.querySelector('.app-filters');
+  if (filtersCard) filtersCard.style.display = '';
+
+  carregarMateriais(uf, codigoAlmox);
+  sincronizarFiltrosApp(uf, codigoAlmox);
+  estado.abaAtiva = 'contagem';
+  render();
+  tentarCarregarRascunho(uf, codigoAlmox);
 }
 
 function sincronizarFiltrosApp(uf, codigoAlmox) {
   const selectUf2    = document.getElementById('uf2');
   const selectAlmox2 = document.getElementById('almox2');
+  if (!selectUf2 || !selectAlmox2) return;
 
   popularUFsEm(selectUf2);
   selectUf2.value = uf;
 
   selectAlmox2.innerHTML = '<option value="">Todos os almoxarifados</option>';
-  const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
-  almoxs.forEach(a => {
-    const opt = document.createElement('option');
-    opt.value = a.codigo;
-    opt.textContent = a.label;
-    selectAlmox2.appendChild(opt);
-  });
-  selectAlmox2.value = codigoAlmox;
+  if (uf) {
+    const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
+    almoxs.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.codigo;
+      opt.textContent = a.label;
+      selectAlmox2.appendChild(opt);
+    });
+    if (codigoAlmox) selectAlmox2.value = codigoAlmox;
+  }
 }
 
 // ── Inicialização do App (após carregamento) ───────────────────────────────────
@@ -241,11 +278,12 @@ function voltarParaLanding() {
   estado.materiaisVisiveis = [];
   estado.contagens = {};
 
+  // Reseta o select de UF no landing
+  const selectUf = document.getElementById('uf');
+  if (selectUf) selectUf.value = '';
+
   landing.classList.remove('fade-out');
   landing.style.display = 'flex';
-  document.getElementById('almox').value = '';
-  document.getElementById('almox').disabled = true;
-  document.getElementById('almox').innerHTML = '<option value="">Selecione a UF primeiro</option>';
 
   window.scrollTo({ top: 0 });
   document.body.style.overflow = '';
