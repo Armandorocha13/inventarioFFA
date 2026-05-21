@@ -70,25 +70,30 @@
     <header id="mainHeader" class="app-header">
       <nav class="app-nav">
 
-        <!-- Logo -->
-        <div class="app-nav-logo">
+        <!-- Logo (FFA) -->
+        <div class="app-logo-wrap hover:bg-accent rounded-md p-2 cursor-pointer" onclick="window.scrollTo({top:0, behavior:'smooth'})" title="FFA Infraestrutura">
           <img src="./logo.png" alt="FFA" class="app-logo-img">
         </div>
 
-        <!-- Tabs de Navegação (centro) -->
-        <div class="app-nav-tabs" id="tabsNav">
+        <!-- Links de Navegação (Contagem Ativa, Curva ABC, Painel de Monitoramento) -->
+        <div class="app-nav-tabs hidden md:flex" id="tabsNav">
           <button class="app-tab active" data-tab="contagem">Contagem Ativa</button>
           <button class="app-tab" data-tab="curvaABC">Curva ABC</button>
           <button class="app-tab" data-tab="monitoramento">Painel de Monitoramento</button>
         </div>
 
-        <!-- Ações (direita) -->
+        <!-- Ações do Header (Tema) -->
         <div class="app-nav-actions">
           <button id="btnTema" class="btn-icon" title="Alternar Tema">
             <i class="fas fa-moon"></i>
           </button>
-          <button id="btnTrocarBase" class="btn-icon btn-change-base" title="Trocar Base / Almoxarifado">
-            <i class="fas fa-exchange-alt"></i>
+          
+          <!-- Botão Menu Mobile (com morphing MenuToggleIcon SVG) -->
+          <button id="btnMenuMobile" class="btn-icon btn-menu-mobile md:hidden" aria-label="Menu" aria-expanded="false">
+            <svg stroke-width="2.5" fill="none" stroke="currentColor" viewBox="0 0 32 32" stroke-linecap="round" stroke-linejoin="round" class="menu-toggle-svg" id="menuToggleIconSvg" style="transition-duration: 300ms;">
+              <path class="menu-toggle-path-morph" style="transition-duration: 300ms;" d="M27 10 13 10C10.8 10 9 8.2 9 6 9 3.5 10.8 2 13 2 15.2 2 17 3.8 17 6L17 26C17 28.2 18.8 30 21 30 23.2 30 25 28.2 25 26 25 23.8 23.2 22 21 22L7 22" />
+              <path d="M7 16 27 16" />
+            </svg>
           </button>
         </div>
 
@@ -98,19 +103,17 @@
     <!-- Menu Mobile (portal) -->
     <div id="mobileMenu" class="mobile-menu" style="display: none;" aria-hidden="true">
       <div class="mobile-menu-inner">
-        <button class="app-tab-mobile" data-tab="contagem"><i class="fas fa-clipboard-list"></i> Contagem Ativa</button>
-        <button class="app-tab-mobile" data-tab="curvaABC"><i class="fas fa-chart-bar"></i> Curva ABC</button>
-        <button class="app-tab-mobile" data-tab="monitoramento"><i class="fas fa-chart-line"></i> Painel de Monitoramento</button>
+        <div class="mobile-menu-links">
+          <button class="app-tab-mobile active" data-tab="contagem">Contagem Ativa</button>
+          <button class="app-tab-mobile" data-tab="curvaABC">Curva ABC</button>
+          <button class="app-tab-mobile" data-tab="monitoramento">Painel de Monitoramento</button>
+        </div>
         <hr class="mobile-divider">
-        <button id="btnTemaMovil" class="mobile-action-btn"><i class="fas fa-moon"></i> Alternar Tema</button>
-        <button id="btnTrocarBaseMovil" class="mobile-action-btn"><i class="fas fa-exchange-alt"></i> Trocar Base</button>
+        <div class="mobile-menu-actions">
+          <button id="btnTemaMovil" class="mobile-action-btn"><i class="fas fa-moon"></i> Alternar Tema</button>
+        </div>
       </div>
     </div>
-
-    <!-- Botão Menu Mobile (visível apenas em mobile) -->
-    <button id="btnMenuMobile" class="btn-menu-mobile" aria-label="Menu" aria-expanded="false">
-      <i class="fas fa-bars"></i>
-    </button>
 
     <!-- ── Conteúdo Principal ── -->
     <main class="app-main">

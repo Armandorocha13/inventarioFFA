@@ -207,17 +207,18 @@ function inicializarApp() {
     });
   });
 
-  // Mobile menu toggle
+  // Mobile menu toggle (supporting morphing SVG)
   document.getElementById('btnMenuMobile').addEventListener('click', () => {
     const menu = document.getElementById('mobileMenu');
     const btn  = document.getElementById('btnMenuMobile');
+    const svg  = document.getElementById('menuToggleIconSvg');
     const open = menu.style.display !== 'none';
     if (open) {
       fecharMenuMobile();
     } else {
       menu.style.display = 'block';
       btn.setAttribute('aria-expanded', 'true');
-      btn.querySelector('i').className = 'fas fa-times';
+      if (svg) svg.classList.add('open');
       document.body.style.overflow = 'hidden';
     }
   });
@@ -228,12 +229,31 @@ function inicializarApp() {
     header.classList.toggle('scrolled', window.scrollY > 10);
   }, { passive: true });
 
-  // Trocar base
-  document.getElementById('btnTrocarBase').addEventListener('click', voltarParaLanding);
-  document.getElementById('btnTrocarBaseMovil').addEventListener('click', () => {
-    fecharMenuMobile();
-    voltarParaLanding();
-  });
+  // Get Started (Salvar Contagem) from Header
+  const btnSalvarHeader = document.getElementById('btnSalvarHeader');
+  if (btnSalvarHeader) {
+    btnSalvarHeader.addEventListener('click', abrirModalConfirmacao);
+  }
+  const btnSalvarMobile = document.getElementById('btnSalvarMobile');
+  if (btnSalvarMobile) {
+    btnSalvarMobile.addEventListener('click', () => {
+      fecharMenuMobile();
+      abrirModalConfirmacao();
+    });
+  }
+
+  // Trocar base (Sign In mapping - if present)
+  const btnTrocarBase = document.getElementById('btnTrocarBase');
+  if (btnTrocarBase) {
+    btnTrocarBase.addEventListener('click', voltarParaLanding);
+  }
+  const btnTrocarBaseMovil = document.getElementById('btnTrocarBaseMovil');
+  if (btnTrocarBaseMovil) {
+    btnTrocarBaseMovil.addEventListener('click', () => {
+      fecharMenuMobile();
+      voltarParaLanding();
+    });
+  }
 
   // Busca e filtros
   document.getElementById('searchInput').addEventListener('input', debounce(onBuscaInput, 300));
@@ -299,10 +319,11 @@ function voltarParaLanding() {
 function fecharMenuMobile() {
   const menu = document.getElementById('mobileMenu');
   const btn  = document.getElementById('btnMenuMobile');
+  const svg  = document.getElementById('menuToggleIconSvg');
   if (!menu || !btn) return;
   menu.style.display = 'none';
   btn.setAttribute('aria-expanded', 'false');
-  btn.querySelector('i').className = 'fas fa-bars';
+  if (svg) svg.classList.remove('open');
   document.body.style.overflow = '';
 }
 
