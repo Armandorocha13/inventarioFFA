@@ -90,75 +90,62 @@ function iniciarCarregamento(uf, codigoAlmox) {
           render();
           tentarCarregarRascunho(uf, codigoAlmox);
         } else {
-          // Fluxo novo: mostra picker de almoxarifado dentro do app
-          renderSelecionarAlmox(uf);
+          // Novo fluxo: configura filtros com UF e mostra estado vazio para seleção
+          sincronizarFiltrosApp(uf, null);
+          renderEstadoVazioSelecao();
         }
       }, 380);
     }, 750);
   }, 420);
 }
 
-// ── Picker de Almoxarifado (dentro do App) ─────────────────────────────────────
+// ── Estado Vazio e Seleção de Almoxarifado (dentro do App) ────────────────────
 
-function renderSelecionarAlmox(uf) {
-  // Esconde filtros e desabilita tabs até selecionar almox
-  const filtersCard = document.querySelector('.app-filters');
-  if (filtersCard) filtersCard.style.display = 'none';
+function renderEstadoVazioSelecao() {
+  const container = document.getElementById('abaConteudo');
+  if (!container) return;
 
-  document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
+  // Esconde filtros adicionais (busca e tipo) até selecionar o almoxarifado
+  const grupoBusca = document.getElementById('grupoBusca');
+  const grupoTipo  = document.getElementById('grupoTipo');
+  if (grupoBusca) grupoBusca.style.visibility = 'hidden';
+  if (grupoTipo)  grupoTipo.style.visibility = 'hidden';
+
+  // Desabilita tabs
+  document.querySelectorAll('#tabsNav .app-tab, .app-tab-mobile').forEach(b => {
     b.disabled = true;
     b.style.opacity = '0.35';
     b.style.pointerEvents = 'none';
   });
 
-  const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
-  const nomeUf = uf === 'todos' ? 'Todas as Bases' : `Estado: ${uf}`;
-  const container = document.getElementById('abaConteudo');
-
   container.innerHTML = `
-    <div class="almox-picker animate-fade-in">
-      <div class="almox-picker-header">
-        <div class="almox-picker-icon"><i class="fas fa-warehouse"></i></div>
-        <h2 class="almox-picker-title">Selecione o Almoxarifado</h2>
-        <p class="almox-picker-sub">${nomeUf} &mdash; ${almoxs.length} unidade${almoxs.length !== 1 ? 's' : ''} disponível${almoxs.length !== 1 ? 'is' : ''}</p>
+    <div class="empty-state-container animate-fade-in">
+      <div class="empty-state-icon">
+        <i class="fas fa-warehouse bounce-slow"></i>
       </div>
-      <div class="almox-grid">
-        ${almoxs.map(a => `
-          <button class="almox-card" data-codigo="${a.codigo}" data-uf="${uf}">
-            <div class="almox-card-icon-wrap">
-              <i class="fas fa-warehouse"></i>
-            </div>
-            <div class="almox-card-body">
-              <div class="almox-card-name">${sanitizarTexto(a.label)}</div>
-              <div class="almox-card-code">${sanitizarTexto(a.codigo)}</div>
-            </div>
-            <i class="fas fa-chevron-right almox-card-arrow"></i>
-          </button>
-        `).join('')}
-      </div>
+      <h2 class="empty-state-title">Nenhum Almoxarifado Selecionado</h2>
+      <p class="empty-state-text">
+        Selecione um almoxarifado no painel de filtros acima para visualizar e auditar o estoque.
+      </p>
     </div>
   `;
-
-  container.querySelectorAll('.almox-card').forEach(card => {
-    card.addEventListener('click', () => {
-      selecionarAlmox(card.dataset.uf, card.dataset.codigo);
-    });
-  });
 }
 
 function selecionarAlmox(uf, codigoAlmox) {
-  // Reativa tabs e filtros
-  document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
+  // Reativa tabs
+  document.querySelectorAll('#tabsNav .app-tab, .app-tab-mobile').forEach(b => {
     b.disabled = false;
     b.style.opacity = '';
     b.style.pointerEvents = '';
   });
 
-  const filtersCard = document.querySelector('.app-filters');
-  if (filtersCard) filtersCard.style.display = '';
+  // Exibe filtros de busca e tipo
+  const grupoBusca = document.getElementById('grupoBusca');
+  const grupoTipo  = document.getElementById('grupoTipo');
+  if (grupoBusca) grupoBusca.style.visibility = 'visible';
+  if (grupoTipo)  grupoTipo.style.visibility = 'visible';
 
   carregarMateriais(uf, codigoAlmox);
-  sincronizarFiltrosApp(uf, codigoAlmox);
   estado.abaAtiva = 'contagem';
   render();
   tentarCarregarRascunho(uf, codigoAlmox);
@@ -172,7 +159,10 @@ function sincronizarFiltrosApp(uf, codigoAlmox) {
   popularUFsEm(selectUf2);
   selectUf2.value = uf;
 
-  selectAlmox2.innerHTML = '<option value="">Todos os almoxarifados</option>';
+  // Habilita o select do almoxarifado
+  selectAlmox2.disabled = false;
+
+  selectAlmox2.innerHTML = '<option value="">Selecione o almoxarifado...</option>';
   if (uf) {
     const almoxs = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
     almoxs.forEach(a => {
@@ -248,6 +238,16 @@ function inicializarApp() {
   // Busca e filtros
   document.getElementById('searchInput').addEventListener('input', debounce(onBuscaInput, 300));
   document.getElementById('tipoFilter').addEventListener('change', onTipoFilterChange);
+  document.getElementById('almox2').addEventListener('change', (e) => {
+    const codigoAlmox = e.target.value;
+    const selectUf2 = document.getElementById('uf2');
+    const uf = selectUf2 ? selectUf2.value : 'todos';
+    if (codigoAlmox) {
+      selecionarAlmox(uf, codigoAlmox);
+    } else {
+      renderEstadoVazioSelecao();
+    }
+  });
 
   // Event delegation para botões dinâmicos
   document.getElementById('abaConteudo').addEventListener('click', (e) => {
@@ -281,6 +281,13 @@ function voltarParaLanding() {
   // Reseta o select de UF no landing
   const selectUf = document.getElementById('uf');
   if (selectUf) selectUf.value = '';
+
+  // Reseta o select de Almoxarifado no app
+  const selectAlmox2 = document.getElementById('almox2');
+  if (selectAlmox2) {
+    selectAlmox2.value = '';
+    selectAlmox2.disabled = true;
+  }
 
   landing.classList.remove('fade-out');
   landing.style.display = 'flex';

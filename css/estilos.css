@@ -1609,3 +1609,59 @@ tr.linha-divergente {
     padding: 2rem 0;
   }
 }
+
+/* ==========================================================================
+   ESTADO VAZIO (PROMPT DE SELEÇÃO DE ALMOXARIFADO VIA FILTRO)
+   ========================================================================== */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  text-align: center;
+  background: var(--glass-bg);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius);
+  max-width: 600px;
+  margin: 4rem auto;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.empty-state-icon {
+  font-size: 3.5rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  opacity: 0.6;
+}
+
+.empty-state-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.empty-state-text {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Animações premium */
+.bounce-slow {
+  animation: bounceSlow 3s infinite;
+}
+
+@keyframes bounceSlow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
