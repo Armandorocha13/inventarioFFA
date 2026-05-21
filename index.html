@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-tema="claro">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma de Inventário — FFA Infraestrutura</title>
+
+  <!-- Fontes Premium e Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TELA 1 — LANDING: Logo centralizada + Seletores (visível inicialmente)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="landingScreen" class="landing-screen">
+    <div class="landing-content">
+
+      <!-- Logo do Projeto -->
+      <div class="landing-logo-wrap">
+        <img src="./logo.png" alt="FFA Infraestrutura" class="landing-logo">
+      </div>
+
+      <h1 class="landing-title">Plataforma de Inventário</h1>
+      <p class="landing-subtitle">FFA Infraestrutura — Selecione sua base para continuar</p>
+
+      <!-- Seletores de Seleção -->
+      <div class="landing-selectors">
+        <div class="landing-form-group">
+          <label for="uf"><i class="fas fa-map-marker-alt"></i> Estado (UF)</label>
+          <select id="uf" class="form-control landing-select">
+            <option value="">Selecione...</option>
+            <option value="todos">Todas as bases</option>
+          </select>
+        </div>
+
+        <div class="landing-form-group">
+          <label for="almox"><i class="fas fa-warehouse"></i> Almoxarifado</label>
+          <select id="almox" class="form-control landing-select" disabled>
+            <option value="">Selecione a UF primeiro</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TELA 2 — LOADING: Logo + barra de progresso animada
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="loadingScreen" class="loading-screen" style="display: none;">
+    <div class="loading-content">
+      <img src="./logo.png" alt="Carregando..." class="loading-logo">
+      <div class="loading-bar-track">
+        <div class="loading-bar-fill"></div>
+      </div>
+      <p class="loading-label">Sincronizando inventário...</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TELA 3 — APP: Header sticky + Conteúdo (oculto inicialmente)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="appScreen" style="display: none;">
+
+    <!-- ── Header Sticky (header-1 style) ── -->
+    <header id="mainHeader" class="app-header">
+      <nav class="app-nav">
+
+        <!-- Logo -->
+        <div class="app-nav-logo">
+          <img src="./logo.png" alt="FFA" class="app-logo-img">
+        </div>
+
+        <!-- Tabs de Navegação (centro) -->
+        <div class="app-nav-tabs" id="tabsNav">
+          <button class="app-tab active" data-tab="contagem">Contagem Ativa</button>
+          <button class="app-tab" data-tab="curvaABC">Curva ABC</button>
+          <button class="app-tab" data-tab="monitoramento">Painel de Monitoramento</button>
+        </div>
+
+        <!-- Ações (direita) -->
+        <div class="app-nav-actions">
+          <button id="btnTema" class="btn-icon" title="Alternar Tema">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button id="btnTrocarBase" class="btn-icon btn-change-base" title="Trocar Base / Almoxarifado">
+            <i class="fas fa-exchange-alt"></i>
+          </button>
+        </div>
+
+      </nav>
+    </header>
+
+    <!-- Menu Mobile (portal) -->
+    <div id="mobileMenu" class="mobile-menu" style="display: none;" aria-hidden="true">
+      <div class="mobile-menu-inner">
+        <button class="app-tab-mobile" data-tab="contagem"><i class="fas fa-clipboard-list"></i> Contagem Ativa</button>
+        <button class="app-tab-mobile" data-tab="curvaABC"><i class="fas fa-chart-bar"></i> Curva ABC</button>
+        <button class="app-tab-mobile" data-tab="monitoramento"><i class="fas fa-chart-line"></i> Painel de Monitoramento</button>
+        <hr class="mobile-divider">
+        <button id="btnTemaMovil" class="mobile-action-btn"><i class="fas fa-moon"></i> Alternar Tema</button>
+        <button id="btnTrocarBaseMovil" class="mobile-action-btn"><i class="fas fa-exchange-alt"></i> Trocar Base</button>
+      </div>
+    </div>
+
+    <!-- Botão Menu Mobile (visível apenas em mobile) -->
+    <button id="btnMenuMobile" class="btn-menu-mobile" aria-label="Menu" aria-expanded="false">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- ── Conteúdo Principal ── -->
+    <main class="app-main">
+
+      <!-- Filtros (visíveis mas compactos dentro do app) -->
+      <section class="card filters-card app-filters">
+        <div class="filtros-grid">
+          <div class="form-group">
+            <label for="uf2"><i class="fas fa-map-marker-alt"></i> Estado (UF)</label>
+            <select id="uf2" class="form-control" disabled></select>
+          </div>
+          <div class="form-group">
+            <label for="almox2"><i class="fas fa-warehouse"></i> Almoxarifado</label>
+            <select id="almox2" class="form-control" disabled></select>
+          </div>
+          <div class="form-group" id="grupoBusca" style="visibility: hidden;">
+            <label for="searchInput"><i class="fas fa-search"></i> Buscar Material</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="Descrição, origem...">
+          </div>
+          <div class="form-group" id="grupoTipo" style="visibility: hidden;">
+            <label for="tipoFilter"><i class="fas fa-tags"></i> Tipo de Material</label>
+            <select id="tipoFilter" class="form-control">
+              <option value="todos">Todos os materiais</option>
+              <option value="cabos">Cabos / Fios</option>
+              <option value="equipamentos">Equipamentos / Postes</option>
+              <option value="conexoes">Conexões / Acessórios</option>
+              <option value="seguranca">Segurança / Ferramentas</option>
+              <option value="medicao">Medição / Proteção</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conteúdo Dinâmico das Abas -->
+      <div id="abaConteudo" class="tab-content-area">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+
+    </main>
+
+  </div><!-- /appScreen -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       MODAIS E UTILITÁRIOS (sempre presentes no DOM)
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Modal de Confirmação Final -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <i class="fas fa-check-circle modal-icon"></i>
+        <h3>Finalizar Atualização</h3>
+      </div>
+      <div class="modal-body">
+        <p>Você revisou todos os dados e está prestes a gravar a contagem física atual no sistema. Resumo da operação:</p>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span id="modalResumoTotal">0</span>
+            <small>Itens Auditados</small>
+          </div>
+          <div class="stat-box">
+            <span id="modalResumoDivergencias">0</span>
+            <small>Divergências</small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btnCancelarSalvar" class="btn btn-secondary">Voltar</button>
+        <button id="btnConfirmarSalvar" class="btn btn-primary">Confirmar e Gravar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toastContainer"></div>
+
+  <!-- Bibliotecas Externas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- App -->
+  <script type="module" src="js/aplicacao.js"></script>
+
+</body>
+</html>

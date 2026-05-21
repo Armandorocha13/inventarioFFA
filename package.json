@@ -1,0 +1,23 @@
+{
+  "name": "sgi-sistema-gestao-inventario",
+  "version": "2.0.0",
+  "description": "SGI — Sistema de Gestão de Inventário (HTML + CSS + JS puro, TDD com Vitest)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "keywords": [
+    "inventario",
+    "almoxarifado",
+    "sgi"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  }
+}
