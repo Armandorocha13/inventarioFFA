@@ -802,12 +802,11 @@ input:checked + .slider:before {
 
 .stat-number {
   font-family: 'Quicksand', sans-serif;
-  font-size: clamp(1.4rem, 2.5vw, 2.25rem);
+  font-size: clamp(1rem, 1.8vw, 1.65rem);
   font-weight: 800;
   color: var(--text-main);
   line-height: 1.1;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+  white-space: nowrap;
 }
 
 .stat-desc {
