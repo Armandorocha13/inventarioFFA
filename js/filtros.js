@@ -74,27 +74,9 @@ export function filtrarMateriais(materiais, filtro, contagens = {}, apenasDiverg
       });
     }
 
-    // 2. Filtro por Tipo de Material
+    // 2. Filtro por Tipo de Material (agora utiliza a descrição exata do material carregada no <select>)
     if (tipo && tipo !== 'todos') {
-      resultado = resultado.filter(m => {
-        const desc = (m.descricao || '').toUpperCase();
-        if (tipo === 'cabos') {
-          return desc.includes('CABO') || desc.includes('FIO');
-        }
-        if (tipo === 'equipamentos') {
-          return desc.includes('TRANSFORMADOR') || desc.includes('CHAVE') || desc.includes('RELIGADOR') || desc.includes('POSTE') || desc.includes('CRUZETA');
-        }
-        if (tipo === 'conexoes') {
-          return desc.includes('PARAFUSO') || desc.includes('LUVA') || desc.includes('FITA') || desc.includes('TERMINAL') || desc.includes('ELETRODUTO') || desc.includes('CONECTOR') || desc.includes('GRAMPO') || desc.includes('ISOLADOR');
-        }
-        if (tipo === 'seguranca') {
-          return desc.includes('ESCADA') || desc.includes('CINTO');
-        }
-        if (tipo === 'medicao') {
-          return desc.includes('MEDIDOR') || desc.includes('CAIXA DE MEDIÇÃO') || desc.includes('DISJUNTOR') || desc.includes('RELÉ') || desc.includes('TC') || desc.includes('TRANSFORMADOR DE CORRENTE');
-        }
-        return true;
-      });
+      resultado = resultado.filter(m => (m.descricao || '') === tipo);
     }
 
     // 3. Filtro por Unidade de Medida

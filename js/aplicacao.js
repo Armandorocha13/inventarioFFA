@@ -5,7 +5,14 @@
  * Gerencia o estado da sessão atual (almoxarifado selecionado, contagens preenchidas).
  */
 
-import { getEstados, getAlmoxarifados, getMateriais } from './dadosFonte.js';
+import { 
+  getEstados, 
+  getAlmoxarifados, 
+  inicializarFiltros, 
+  buscarMateriais, 
+  buscarHistoricoBanco, 
+  gravarContagensBanco 
+} from './dadosFonte.js';
 import { filtrarMateriais, ordenarPor, debounce } from './filtros.js';
 import { validarContagens } from './validacao.js';
 import { adicionarRegistro, limparHistorico } from './historico.js';
@@ -41,9 +48,35 @@ let abaEstruturaCarregada = null;
 
 // ─── Inicialização ────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   aplicarTema();
-  inicializarLanding();
+  
+  const loading = document.getElementById('loadingScreen');
+  if (loading) {
+    loading.style.display = 'flex';
+    const label = loading.querySelector('.loading-label');
+    if (label) label.textContent = 'Carregando bases e contratos do Neon...';
+  }
+
+  try {
+    await inicializarFiltros();
+    inicializarLanding();
+    
+    if (loading) {
+      loading.classList.add('fade-out');
+      setTimeout(() => {
+        loading.style.display = 'none';
+        loading.classList.remove('fade-out');
+      }, 380);
+    }
+  } catch (err) {
+    console.error('Erro na inicialização:', err);
+    const label = loading?.querySelector('.loading-label');
+    if (label) {
+      label.innerHTML = '<span style="color: var(--danger)">Erro crítico de conexão com o Neon DB.<br>Verifique se o servidor de API está ativo!</span>';
+    }
+    mostrarToast('Erro ao conectar ao banco de dados Neon.', 'erro');
+  }
 });
 
 // ── Tela 1: Landing (seleção de base) ─────────────────────────────────────────
@@ -63,7 +96,7 @@ function inicializarLanding() {
 
 // ── Tela 2 → 3: Loading → App ─────────────────────────────────────────────────
 
-function iniciarCarregamento(uf, codigoAlmox) {
+async function iniciarCarregamento(uf, codigoAlmox) {
   const landing = document.getElementById('landingScreen');
   const loading = document.getElementById('loadingScreen');
   const app     = document.getElementById('appScreen');
@@ -74,9 +107,12 @@ function iniciarCarregamento(uf, codigoAlmox) {
     landing.style.display = 'none';
     loading.style.display = 'flex';
 
-    setTimeout(() => {
+    const label = loading.querySelector('.loading-label');
+    if (label) label.textContent = 'Carregando materiais do banco Neon...';
+
+    setTimeout(async () => {
       loading.classList.add('fade-out');
-      setTimeout(() => {
+      setTimeout(async () => {
         loading.style.display = 'none';
         loading.classList.remove('fade-out');
         app.style.display = 'block';
@@ -84,7 +120,10 @@ function iniciarCarregamento(uf, codigoAlmox) {
 
         if (codigoAlmox) {
           // Fluxo normal: já tem almox selecionado → carrega materiais
-          carregarMateriais(uf, codigoAlmox);
+          mostrarLoader(true);
+          await carregarMateriais(uf, codigoAlmox);
+          mostrarLoader(false);
+
           sincronizarFiltrosApp(uf, codigoAlmox);
           estado.abaAtiva = 'contagem';
           render();
@@ -131,7 +170,7 @@ function renderEstadoVazioSelecao() {
   `;
 }
 
-function selecionarAlmox(uf, codigoAlmox) {
+async function selecionarAlmox(uf, codigoAlmox) {
   // Reativa tabs
   document.querySelectorAll('#tabsNav .app-tab, .app-tab-mobile').forEach(b => {
     b.disabled = false;
@@ -145,7 +184,10 @@ function selecionarAlmox(uf, codigoAlmox) {
   if (grupoBusca) grupoBusca.style.visibility = 'visible';
   if (grupoTipo)  grupoTipo.style.visibility = 'visible';
 
-  carregarMateriais(uf, codigoAlmox);
+  mostrarLoader(true);
+  await carregarMateriais(uf, codigoAlmox);
+  mostrarLoader(false);
+
   estado.abaAtiva = 'contagem';
   render();
   tentarCarregarRascunho(uf, codigoAlmox);
@@ -469,13 +511,17 @@ function obterTodosAlmoxarifados() {
   return estados.flatMap(e => getAlmoxarifados(e.sigla));
 }
 
-function carregarMateriaisComLoader(uf, codigoAlmox) {
+async function carregarMateriaisComLoader(uf, codigoAlmox) {
   mostrarLoader(true);
-  
-  setTimeout(() => {
-    carregarMateriais(uf, codigoAlmox);
+  try {
+    await carregarMateriais(uf, codigoAlmox);
+    render();
+    tentarCarregarRascunho(uf, codigoAlmox);
+  } catch (err) {
+    console.error("Erro no carregamento assíncrono:", err);
+  } finally {
     mostrarLoader(false);
-  }, 600);
+  }
 }
 
 function getChaveRascunho(uf, codigoAlmox) {
@@ -495,57 +541,73 @@ function getDescricaoSelecao(uf, codigoAlmox) {
   return `do almoxarifado ${label}`;
 }
 
-function carregarMateriais(uf, codigoAlmox) {
-  if (codigoAlmox === 'todos') {
-    const almoxarifados = uf === 'todos' ? obterTodosAlmoxarifados() : getAlmoxarifados(uf);
-    const codigos = almoxarifados.map(a => a.codigo);
-    estado.materiais = codigos.flatMap(codigo => getMateriais(codigo));
-  } else {
-    estado.materiais = getMateriais(codigoAlmox);
-  }
-  estado.materiaisVisiveis = [...estado.materiais];
-  
-  // Reset active tab and filters
-  estado.abaAtiva = 'contagem';
-  estado.filtros.termo = '';
-  estado.filtros.tipo = 'todos';
-  estado.colunaOrdenacao = null;
-  estado.direcaoOrdenacao = 'asc';
-  
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.value = '';
+async function carregarMateriais(uf, codigoAlmox) {
+  try {
+    let materiais = await buscarMateriais(codigoAlmox);
+    if (codigoAlmox === 'todos' && uf !== 'todos') {
+      const validAlmoxs = getAlmoxarifados(uf);
+      const validCities = validAlmoxs.map(a => a.cidade);
+      materiais = materiais.filter(m => validCities.includes(m.origem));
+    }
+    estado.materiais = materiais;
+    estado.materiaisVisiveis = [...estado.materiais];
+    
+    // Reset active tab and filters
+    estado.abaAtiva = 'contagem';
+    estado.filtros.termo = '';
+    estado.filtros.tipo = 'todos';
+    estado.colunaOrdenacao = null;
+    estado.direcaoOrdenacao = 'asc';
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
 
-  const tipoFilter = document.getElementById('tipoFilter');
-  if (tipoFilter) tipoFilter.value = 'todos';
+    const tipoFilter = document.getElementById('tipoFilter');
+    if (tipoFilter) {
+      // Extrair descrições únicas e preencher dropdown dinamicamente
+      const descricoes = Array.from(new Set(materiais.map(m => m.descricao))).filter(d => d && d.trim() !== '').sort();
+      tipoFilter.innerHTML = '<option value="todos">Todos os materiais</option>';
+      descricoes.forEach(desc => {
+        const opt = document.createElement('option');
+        opt.value = desc;
+        opt.textContent = desc;
+        tipoFilter.appendChild(opt);
+      });
+      tipoFilter.value = 'todos';
+    }
 
-  // Reseta abas ativas visualmente (desktop + mobile)
-  document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === 'contagem');
-  });
-  document.querySelectorAll('.app-tab-mobile').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === 'contagem');
-  });
+    // Reseta abas ativas visualmente (desktop + mobile)
+    document.querySelectorAll('#tabsNav .app-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === 'contagem');
+    });
+    document.querySelectorAll('.app-tab-mobile').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === 'contagem');
+    });
 
-  // Recupera rascunho salvo do localStorage se houver
-  const chaveRascunho = getChaveRascunho(uf, codigoAlmox);
-  const rascunhoSalvo = chaveRascunho ? localStorage.getItem(chaveRascunho) : null;
-  if (rascunhoSalvo && chaveRascunho) {
-    try {
-      estado.contagens = JSON.parse(rascunhoSalvo);
-      mostrarToast('Rascunho recuperado com sucesso!', 'sucesso');
-    } catch (e) {
-      console.error("Erro ao carregar rascunho:", e);
+    // Recupera rascunho salvo do localStorage se houver
+    const chaveRascunho = getChaveRascunho(uf, codigoAlmox);
+    const rascunhoSalvo = chaveRascunho ? localStorage.getItem(chaveRascunho) : null;
+    if (rascunhoSalvo && chaveRascunho) {
+      try {
+        estado.contagens = JSON.parse(rascunhoSalvo);
+        mostrarToast('Rascunho recuperado com sucesso!', 'sucesso');
+      } catch (e) {
+        console.error("Erro ao carregar rascunho:", e);
+        estado.contagens = {};
+      }
+    } else {
       estado.contagens = {};
     }
-  } else {
-    estado.contagens = {};
-  }
-  
-  limparHistorico();
-  abaEstruturaCarregada = null;
+    
+    limparHistorico();
+    abaEstruturaCarregada = null;
 
-  // Toast de confirmação
-  mostrarToast(`Carregados ${estado.materiais.length} itens ${getDescricaoSelecao(uf, codigoAlmox)}`, 'info');
+    // Toast de confirmação
+    mostrarToast(`Carregados ${estado.materiais.length} itens ${getDescricaoSelecao(uf, codigoAlmox)}`, 'info');
+  } catch (err) {
+    mostrarToast('Falha ao conectar com o banco Neon para trazer os materiais.', 'erro');
+    throw err;
+  }
 }
 
 function limparTabela() {
@@ -1230,8 +1292,86 @@ function renderAbaMonitoramento(container) {
             }).join('')}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Tabela 3: Histórico de Auditorias Gravado no Banco Neon (JOIN Completo) -->
+    <div class="card animate-fade-in" style="margin-top: 2rem; width: 100%;">
+      <h3 style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.15rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+         <i class="fas fa-history" style="color: var(--text-main);"></i> Histórico Geral de Auditorias (Banco Neon)
+      </h3>
+      <div id="historicoBancoContainer">
+         <div style="display: flex; flex-direction: column; align-items: center; padding: 2rem 0; gap: 1rem; color: var(--text-muted);">
+           <div class="spinner" style="border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--text-main); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite;"></div>
+           <span>Carregando logs do banco Neon...</span>
+         </div>
+      </div>
     </div>
   `;
+
+  // Disparar a busca assíncrona do histórico de auditorias do Neon
+  setTimeout(async () => {
+    const containerBanco = document.getElementById('historicoBancoContainer');
+    if (!containerBanco) return;
+    try {
+      const historico = await buscarHistoricoBanco();
+      if (!historico || historico.length === 0) {
+        containerBanco.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+            Nenhum histórico de auditoria gravado no banco de dados.
+          </div>
+        `;
+        return;
+      }
+
+      containerBanco.innerHTML = `
+        <div class="table-responsive">
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Cód. Mat</th>
+                <th>Descrição do Item</th>
+                <th>Qtd. Anterior</th>
+                <th>Qtd. Nova</th>
+                <th>Desvio</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historico.map(h => {
+                const desvioClass = h.desvio === 0 ? 'badge-diff igual' : h.desvio > 0 ? 'badge-diff sobra' : 'badge-diff falta';
+                const desvioText = h.desvio > 0 ? `+${h.desvio}` : h.desvio;
+                const dataFormatada = formatarData(h.timestamp) + ' ' + new Date(h.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return `
+                  <tr>
+                    <td style="font-size: 0.8rem; white-space: nowrap; color: var(--text-muted);">${dataFormatada}</td>
+                    <td><span class="badge-unidade" style="font-family: monospace;">${sanitizarTexto(h.codmat)}</span></td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;" title="${sanitizarTexto(h.descricao)}">
+                      ${sanitizarTexto(h.descricao)}
+                    </td>
+                    <td style="text-align: center;">${h.valorAnterior !== null ? h.valorAnterior : '—'}</td>
+                    <td style="text-align: center; font-weight: 600;">${h.valorNovo}</td>
+                    <td style="text-align: center;"><span class="${desvioClass}">${desvioText}</span></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sanitizarTexto(h.observacao || '')}">
+                      ${sanitizarTexto(h.observacao || '—')}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (err) {
+      console.error("Erro ao carregar histórico do banco:", err);
+      containerBanco.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--danger); font-size: 0.9rem;">
+          <i class="fas fa-exclamation-circle"></i> Erro ao carregar histórico do Neon DB.
+        </div>
+      `;
+    }
+  }, 80);
 }
 
 // ─── Ações de Salvar e Modal ──────────────────────────────────────────────────
@@ -1266,48 +1406,62 @@ function fecharModalConfirmacao() {
   document.getElementById('modalOverlay').style.display = 'none';
 }
 
-function salvarContagens() {
+async function salvarContagens() {
   fecharModalConfirmacao();
   
-  const arrContagens = Object.keys(estado.contagens).map(id => ({
-    id,
-    novaQtd: estado.contagens[id].novaQtd,
-    observacao: estado.contagens[id].observacao
-  }));
+  const arrContagens = Object.keys(estado.contagens).map(id => {
+    const mat = estado.materiais.find(m => m.id === id);
+    return {
+      id,
+      codmat: mat ? mat.codmat : '',
+      descricao: mat ? mat.descricao : '',
+      valorAnterior: mat ? mat.saldoAtual : null,
+      valorNovo: estado.contagens[id].novaQtd,
+      observacao: estado.contagens[id].observacao || ''
+    };
+  });
+
+  if (arrContagens.length === 0) {
+    mostrarToast('Nenhuma contagem física para salvar.', 'aviso');
+    return;
+  }
+
+  mostrarLoader(true);
 
   try {
-    arrContagens.forEach(c => {
-      const mat = estado.materiais.find(m => m.id === c.id);
-      adicionarRegistro({
-        id: c.id,
-        descricao: mat ? mat.descricao : '',
-        valorAnterior: mat ? mat.saldoAtual : null,
-        valorNovo: c.novaQtd,
-        observacao: c.observacao
+    const response = await gravarContagensBanco(arrContagens);
+    
+    if (response && response.success) {
+      // Atualizar cache local do estoque com base nas contagens salvas
+      arrContagens.forEach(c => {
+        const mat = estado.materiais.find(m => m.id === c.id);
+        if (mat) {
+          mat.saldoAtual = c.valorNovo;
+          mat.ultimaAtualizacao = new Date().toISOString();
+        }
       });
+
+      estado.contagens = {};
       
-      if (mat) {
-        mat.saldoAtual = c.novaQtd;
-        mat.ultimaAtualizacao = new Date().toISOString();
+      const uf = document.getElementById('uf2')?.value || document.getElementById('uf')?.value || 'todos';
+      const almox = document.getElementById('almox2')?.value || document.getElementById('almox')?.value || 'todos';
+      const chaveRascunho = getChaveRascunho(uf, almox);
+      if (chaveRascunho) {
+        localStorage.removeItem(chaveRascunho);
       }
-    });
 
-    estado.contagens = {};
-    
-    const uf = document.getElementById('uf2')?.value || document.getElementById('uf')?.value || 'todos';
-    const almox = document.getElementById('almox2')?.value || document.getElementById('almox')?.value || 'todos';
-    const chaveRascunho = getChaveRascunho(uf, almox);
-    if (chaveRascunho) {
-      localStorage.removeItem(chaveRascunho);
+      atualizarProgresso();
+      render();
+      
+      mostrarToast('Contagem salva com sucesso! Neon DB e saldos atualizados.', 'sucesso');
+    } else {
+      throw new Error(response?.error || 'Erro desconhecido retornado da API.');
     }
-
-    atualizarProgresso();
-    render();
-    
-    mostrarToast('Contagem salva com sucesso! Saldos atualizados.', 'sucesso');
-    
   } catch (err) {
-    mostrarToast('Erro ao salvar: ' + err.message, 'erro');
+    console.error("Erro ao salvar contagens físicas:", err);
+    mostrarToast('Erro ao salvar no Neon: ' + err.message, 'erro');
+  } finally {
+    mostrarLoader(false);
   }
 }
 

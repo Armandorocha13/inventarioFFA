@@ -30,3 +30,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Banco de dados local (protegido)
+db/
+

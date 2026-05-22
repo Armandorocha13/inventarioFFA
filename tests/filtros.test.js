@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   filtrarMateriais,
   ordenarPor,
@@ -108,7 +108,8 @@ describe('ordenarPor', () => {
 });
 
 describe('debounce', () => {
-  it('deve chamar a função apenas uma vez após o delay', async () => {
+  it('deve chamar a função apenas uma vez após o delay', () => {
+    vi.useFakeTimers();
     let chamadas = 0;
     const fn = debounce(() => chamadas++, 50);
 
@@ -116,28 +117,33 @@ describe('debounce', () => {
     fn();
     fn();
 
-    await new Promise(r => setTimeout(r, 100));
+    vi.advanceTimersByTime(50);
     expect(chamadas).toBe(1);
+    vi.useRealTimers();
   });
 
-  it('deve passar os argumentos corretamente para a função original', async () => {
+  it('deve passar os argumentos corretamente para a função original', () => {
+    vi.useFakeTimers();
     let resultado = null;
     const fn = debounce((a, b) => { resultado = a + b; }, 30);
 
     fn(3, 7);
-    await new Promise(r => setTimeout(r, 60));
+    vi.advanceTimersByTime(30);
     expect(resultado).toBe(10);
+    vi.useRealTimers();
   });
 
-  it('deve reiniciar o timer a cada chamada', async () => {
+  it('deve reiniciar o timer a cada chamada', () => {
+    vi.useFakeTimers();
     let chamadas = 0;
     const fn = debounce(() => chamadas++, 80);
 
     fn();
-    await new Promise(r => setTimeout(r, 50));
+    vi.advanceTimersByTime(50);
     fn();
-    await new Promise(r => setTimeout(r, 100));
+    vi.advanceTimersByTime(80);
 
     expect(chamadas).toBe(1);
+    vi.useRealTimers();
   });
 });
