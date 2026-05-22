@@ -176,7 +176,6 @@ export default function AppScreen({
         <nav className="app-nav">
           <div className="app-logo-wrap" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Image src="/logo.png" alt="FFA" className="app-logo-img" width={80} height={40} style={{ objectFit: 'contain' }} />
-            <span className="app-title-text" style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--text)' }}>FFA INFRAESTRUTURA</span>
           </div>
 
           {/* Abas removidas por redundância pós-login dinâmico */}
