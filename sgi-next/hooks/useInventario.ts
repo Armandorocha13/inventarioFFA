@@ -68,7 +68,7 @@ function inventarioReducer(state: InventarioState, action: Action): InventarioSt
         filtros: { termo: '', tipo: 'todos' },
         colunaOrdenacao: null,
         direcaoOrdenacao: 'asc',
-        abaAtiva: 'contagem',
+        // Mantem a aba atual definida pelo login
       };
       return { ...newState, materiaisVisiveis: action.payload.materiais };
     }

@@ -25,6 +25,15 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const financeiro = calcularFinanceiroDivergencias(materiais, contagens);
   const { resultadoLiquido } = financeiro;
 
+  const valorTotalFisico = materiais.reduce((acc, m) => {
+    const f = contagens[m.id]?.novaQtd;
+    return acc + (f !== undefined ? f * (m.precoUnitario || 0) : 0);
+  }, 0);
+  const maxValorFinanceiro = Math.max(valorTotalEstoque, valorTotalFisico, 1);
+  const pctSistemico = Math.round((valorTotalEstoque / maxValorFinanceiro) * 100);
+  const pctFisico = Math.round((valorTotalFisico / maxValorFinanceiro) * 100);
+  const pctFinal = Math.min(100, Math.round((Math.abs(resultadoLiquido) / maxValorFinanceiro) * 100));
+
   const abc = classificarCurvaABC(materiais, contagens);
   const valorA = abc.classes.A.reduce((s, i) => s + i.valorEstoque, 0);
   const valorB = abc.classes.B.reduce((s, i) => s + i.valorEstoque, 0);
@@ -37,17 +46,29 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const circumference = 2 * Math.PI * radius;
   const dashoffset = circumference - (taxaAcuracidade / 100) * circumference;
 
-  const itensComValor = materiais
-    .map((m) => ({ ...m, valorEstoque: m.saldoAtual * (m.precoUnitario || 0) }))
+  const materiaisAgrupadosPorNome = Array.from(
+    materiais.reduce((map, m) => {
+      const key = m.descricao;
+      if (!map.has(key)) {
+        map.set(key, { ...m, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
+      }
+      const agrupado = map.get(key)!;
+      agrupado.saldoAtual += m.saldoAtual;
+      agrupado.valorEstoque += m.saldoAtual * (m.precoUnitario || 0);
+      agrupado.idsVinculados.push(m.id);
+      return map;
+    }, new Map<string, any>())
+  ).map(([, val]) => val);
+
+  const materiaisAnalitico = materiaisAgrupadosPorNome
     .sort((a, b) => b.valorEstoque - a.valorEstoque);
-  const top5 = itensComValor.slice(0, 5);
 
   const divergenciasAtivas = materiais.flatMap((m) => {
     if (!(m.id in contagens)) return [];
     const novaQtd = contagens[m.id].novaQtd;
     if (novaQtd === m.saldoAtual) return [];
     const desvio = novaQtd - m.saldoAtual;
-    return [{ descricao: m.descricao, saldoAtual: m.saldoAtual, novaQtd, desvio, impacto: desvio * (m.precoUnitario || 0) }];
+    return [{ descricao: m.descricao, origem: m.origem, saldoAtual: m.saldoAtual, novaQtd, desvio, impacto: desvio * (m.precoUnitario || 0) }];
   });
 
   const maxValor = Math.max(valorA, valorB, valorC, 1);
@@ -115,80 +136,157 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           </div>
         </div>
 
-        {/* Barras ABC */}
+        {/* Valores Totais */}
         <div className="chart-card">
-          <div className="chart-card-title"><i className="fas fa-chart-pie"></i> Valor Estocado por Classe</div>
+          <div className="chart-card-title"><i className="fas fa-wallet"></i> Balanço Financeiro</div>
           <div className="chart-container" style={{ flexDirection: 'column', justifyContent: 'space-around', gap: '0.75rem', padding: '1rem 0' }}>
-            {[
-              { label: 'Classe A (Alta Relevância)', valor: valorA, pct: pctBarA, cls: 'svg-bar-fill-A' },
-              { label: 'Classe B (Média Relevância)', valor: valorB, pct: pctBarB, cls: 'svg-bar-fill-B' },
-              { label: 'Classe C (Baixa Relevância)', valor: valorC, pct: pctBarC, cls: 'svg-bar-fill-C' },
-            ].map((item) => (
-              <div key={item.cls} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
-                  <span>{item.label}</span><span>{formatarMoeda(item.valor)}</span>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Total Sistêmico</span><span>{formatarMoeda(valorTotalEstoque)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctSistemico}%`, height: '100%', borderRadius: '4px', background: 'var(--text-main)' }} />
+              </div>
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Total Físico</span><span>{formatarMoeda(valorTotalFisico)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctFisico}%`, height: '100%', borderRadius: '4px', background: 'var(--success)' }} />
+              </div>
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Resultado Final (Diferença)</span><span style={{ color: getImpactoColor(resultadoLiquido) }}>{formatarMoeda(resultadoLiquido)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctFinal}%`, height: '100%', borderRadius: '4px', background: getImpactoColor(resultadoLiquido) }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráfico de Acuracidade por UF */}
+        <div className="chart-card">
+          <div className="chart-card-title"><i className="fas fa-chart-column"></i> Acuracidade por UF</div>
+          <div className="chart-container" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '100%', padding: '1rem', gap: '0.25rem', overflow: 'hidden' }}>
+            {Object.entries(
+              materiais.reduce((acc, m) => {
+                const cidadeUpper = (m.origem || '').toUpperCase();
+                let uf = 'Outros';
+                if (cidadeUpper === 'ESPIRITO SANTO' || cidadeUpper === 'ES') uf = 'Espírito Santo';
+                else if (cidadeUpper === 'SÃO PAULO' || cidadeUpper === 'SAO PAULO' || cidadeUpper === 'SP') uf = 'São Paulo';
+                else if (cidadeUpper === 'CURITIBA' || cidadeUpper === 'PARANA' || cidadeUpper === 'PARANÁ' || cidadeUpper === 'PR') uf = 'Paraná';
+                else if (cidadeUpper === 'MINAS GERAIS' || cidadeUpper === 'MG') uf = 'Minas Gerais';
+                else if ((cidadeUpper.includes('RIO') && cidadeUpper.includes('JANEIRO')) || cidadeUpper === 'RJ') uf = 'Rio de Janeiro';
+
+                if (!acc[uf]) acc[uf] = [];
+                acc[uf].push(m);
+                return acc;
+              }, {} as Record<string, Material[]>)
+            )
+            .filter(([uf]) => uf !== 'Outros') // Garante que só os 5 estados oficiais apareçam
+            .map(([uf, mats]) => {
+              const stats = calcularAcuracidade(mats, contagens);
+              return { uf, taxa: stats.taxaAcuracidade, contados: stats.contados };
+            }).sort((a, b) => b.taxa - a.taxa || a.uf.localeCompare(b.uf)).map((item) => (
+              <div key={item.uf} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '0.25rem', height: '100%', overflow: 'hidden' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', marginTop: 'auto' }}>
+                  {item.taxa}%
                 </div>
-                <div className="progress-track" style={{ height: '10px' }}>
-                  <div className={item.cls} style={{ width: `${item.pct}%`, height: '100%', borderRadius: '4px' }} />
+                <div style={{ width: '20px', height: '120px', display: 'flex', alignItems: 'flex-end', background: 'var(--glass-bg)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: `${item.taxa}%`, 
+                    background: item.taxa === 100 ? 'var(--success)' : item.taxa >= 80 ? 'var(--warning)' : 'var(--danger)',
+                    transition: 'height 0.8s ease',
+                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+                  }} />
+                </div>
+                <div style={{ fontSize: '0.55rem', fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', wordBreak: 'break-word', lineHeight: '1.1' }}>
+                  {item.uf}
                 </div>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Disponibilidade */}
-        <div className="chart-card">
-          <div className="chart-card-title"><i className="fas fa-boxes-packing"></i> Nível de Disponibilidade</div>
-          <div className="chart-container" style={{ flexDirection: 'column', justifyContent: 'center', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '1rem' }}>
-              <i className="fas fa-box" style={{ fontSize: '1.5rem', color: 'var(--text-main)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
-                  <span>Disponível</span><span>{pctDisponivel}% ({totalDisponivel})</span>
-                </div>
-                <div className="progress-track" style={{ height: '8px', marginTop: '0.25rem' }}>
-                  <div className="progress-fill" style={{ width: `${pctDisponivel}%` }} />
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '1rem' }}>
-              <i className="fas fa-box-open" style={{ fontSize: '1.5rem', color: 'var(--danger)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
-                  <span>Zerado</span><span>{pctZerado}% ({totalZerado})</span>
-                </div>
-                <div className="progress-track" style={{ height: '8px', marginTop: '0.25rem' }}>
-                  <div style={{ width: `${pctZerado}%`, height: '100%', borderRadius: '4px', background: 'var(--danger)' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Top 5 */}
+      {/* Tabela Analítica */}
       <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
-        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.15rem', marginBottom: '1rem' }}>
-          <i className="fas fa-trophy"></i> Top 5 Materiais por Valor Patrimonial
+        <h3 className="card-title" style={{ marginTop: '2rem' }}>
+          <i className="fas fa-list"></i> Tabela Analítica de Materiais
         </h3>
-        <div className="table-responsive">
-          <table>
-            <thead>
+        <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <tr>
-                <th>#</th><th>Descrição</th><th>Saldo</th><th>Preço Unit.</th><th>Valor Total</th>
+                <th>#</th><th style={{ whiteSpace: 'normal', minWidth: '150px' }}>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
               </tr>
             </thead>
             <tbody>
-              {top5.map((item, i) => (
-                <tr key={item.id}>
-                  <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
-                  <td><strong>{item.descricao}</strong></td>
-                  <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
-                  <td>{formatarMoeda(item.precoUnitario)}</td>
-                  <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
-                </tr>
-              ))}
+              {materiaisAnalitico.map((item, i) => {
+                const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+                  const val = contagens[id]?.novaQtd;
+                  if (val !== undefined) return (acc || 0) + val;
+                  return acc;
+                }, undefined);
+                
+                const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
+                const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+
+                return (
+                  <tr key={item.descricao}>
+                    <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
+                    <td style={{ whiteSpace: 'normal', minWidth: '150px' }}><strong>{item.descricao}</strong></td>
+                    <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
+                    <td>
+                      {fisico !== undefined ? (
+                        <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{fisico}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td>{formatarMoeda(item.precoUnitario)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
+                    <td style={{ fontWeight: 600 }}>{totalFisico !== undefined ? formatarMoeda(totalFisico) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}</td>
+                    <td style={{ fontWeight: 600, color: totalFinal !== undefined ? getImpactoColor(totalFinal) : 'inherit' }}>
+                      {totalFinal !== undefined ? formatarMoeda(totalFinal) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
+            <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' }}>
+              <tr style={{ background: 'var(--glass-bg)', borderTop: '2px solid var(--glass-border)' }}>
+                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => acc + item.valorEstoque, 0))}
+                </td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
+                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                      const val = contagens[id]?.novaQtd;
+                      if (val !== undefined) return (sum || 0) + val;
+                      return sum;
+                    }, undefined);
+                    return acc + (f !== undefined ? f * (item.precoUnitario || 0) : 0);
+                  }, 0))}
+                </td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
+                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                      const val = contagens[id]?.novaQtd;
+                      if (val !== undefined) return (sum || 0) + val;
+                      return sum;
+                    }, undefined);
+                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : 0;
+                    return acc + (tFisico - item.valorEstoque);
+                  }, 0))}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -200,14 +298,15 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
             <i className="fas fa-exclamation-triangle"></i> Divergências Ativas ({divergenciasAtivas.length})
           </h3>
           <div className="table-responsive">
-            <table>
+            <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
               <thead>
-                <tr><th>Material</th><th>Saldo Sistema</th><th>Contagem Física</th><th>Desvio</th><th>Impacto</th></tr>
+                <tr><th>Material</th><th>Origem</th><th>Saldo Sistema</th><th>Contagem Física</th><th>Desvio</th><th>Impacto</th></tr>
               </thead>
               <tbody>
                 {divergenciasAtivas.map((d, i) => (
                   <tr key={i}>
                     <td>{d.descricao}</td>
+                    <td><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{d.origem}</span></td>
                     <td>{d.saldoAtual}</td>
                     <td>{d.novaQtd}</td>
                     <td>

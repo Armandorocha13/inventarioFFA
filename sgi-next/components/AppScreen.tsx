@@ -16,11 +16,14 @@ interface Almoxarifado {
   contrato: number;
 }
 
+import type { PerfilAcesso } from '@/app/page';
+
 interface AppScreenProps {
   uf: string;
   almoxarifados: Almoxarifado[];
   todos: Record<string, Almoxarifado[]>;
   inventario: ReturnType<typeof useInventario>;
+  perfil: PerfilAcesso;
   onVoltarLanding: () => void;
   toast: (msg: string, tipo: 'sucesso' | 'erro' | 'info') => void;
 }
@@ -30,6 +33,7 @@ export default function AppScreen({
   almoxarifados,
   todos,
   inventario,
+  perfil,
   onVoltarLanding,
   toast,
 }: AppScreenProps) {
@@ -47,6 +51,13 @@ export default function AppScreen({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Entrar direto se for Monitoramento
+  useEffect(() => {
+    if (perfil === 'monitoramento' && !codigoAlmox) {
+      handleAlmoxChange('todos');
+    }
+  }, [perfil, codigoAlmox]);
 
   // Tema
   const alternarTema = useCallback(() => {
@@ -165,26 +176,21 @@ export default function AppScreen({
         <nav className="app-nav">
           <div className="app-logo-wrap" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Image src="/logo.png" alt="FFA" className="app-logo-img" width={80} height={40} style={{ objectFit: 'contain' }} />
-            <span className="app-title-text" style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--text)' }}>FFA - Plataforma de Inventário</span>
+            <span className="app-title-text" style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--text)' }}>FFA INFRAESTRUTURA</span>
           </div>
 
-          <div className="app-nav-tabs" id="tabsNav">
-            {(['contagem', 'monitoramento'] as AbaAtiva[]).map((aba) => (
-              <button
-                key={aba}
-                className={`app-tab${state.abaAtiva === aba ? ' active' : ''}`}
-                onClick={() => setAba(aba)}
-                disabled={!codigoAlmox}
-              >
-                {tabLabel(aba)}
-              </button>
-            ))}
-          </div>
+          {/* Abas removidas por redundância pós-login dinâmico */}
 
           <div className="app-nav-actions">
-            <button className="btn-icon" title="Início / Trocar Base" onClick={onVoltarLanding} style={{ marginRight: '10px' }}>
-              <i className="fas fa-home"></i>
-            </button>
+            {perfil === 'monitoramento' ? (
+              <button className="btn-icon" title="Sair do Sistema" onClick={onVoltarLanding} style={{ marginRight: '10px' }}>
+                <i className="fas fa-sign-out-alt"></i>
+              </button>
+            ) : (
+              <button className="btn-icon" title="Início / Sair" onClick={onVoltarLanding} style={{ marginRight: '10px' }}>
+                <i className="fas fa-home"></i>
+              </button>
+            )}
             <button id="btnTema" className="btn-icon" title="Alternar Tema" onClick={alternarTema}>
               <i className={`fas fa-${tema === 'claro' ? 'moon' : 'sun'}`}></i>
             </button>
@@ -205,25 +211,14 @@ export default function AppScreen({
       {menuMobileAberto && (
         <div id="mobileMenu" className="mobile-menu">
           <div className="mobile-menu-inner">
-            <div className="mobile-menu-links">
-              {(['contagem', 'monitoramento'] as AbaAtiva[]).map((aba) => (
-                <button
-                  key={aba}
-                  className={`app-tab-mobile${state.abaAtiva === aba ? ' active' : ''}`}
-                  onClick={() => { setAba(aba); setMenuMobileAberto(false); }}
-                  disabled={!codigoAlmox}
-                >
-                  {tabLabel(aba)}
-                </button>
-              ))}
-            </div>
+            {/* Abas mobile removidas */}
             <hr className="mobile-divider" />
             <div className="mobile-menu-actions">
               <button className="mobile-action-btn" onClick={() => { alternarTema(); setMenuMobileAberto(false); }}>
                 <i className={`fas fa-${tema === 'claro' ? 'moon' : 'sun'}`}></i> Alternar Tema
               </button>
               <button className="mobile-action-btn" onClick={() => { onVoltarLanding(); setMenuMobileAberto(false); }}>
-                <i className="fas fa-arrow-left"></i> Trocar Base
+                <i className={perfil === 'monitoramento' ? "fas fa-sign-out-alt" : "fas fa-home"}></i> Sair
               </button>
             </div>
           </div>
@@ -233,7 +228,7 @@ export default function AppScreen({
       {/* Conteúdo Principal */}
       <main className="app-main">
         {/* Filtros */}
-        <section className="card filters-card app-filters">
+        <section className="card filters-card app-filters" style={{ display: perfil === 'monitoramento' ? 'none' : 'block' }}>
           <div className="filtros-grid">
             <div className="form-group">
               <label htmlFor="uf2"><i className="fas fa-map-marker-alt"></i> Estado (UF)</label>

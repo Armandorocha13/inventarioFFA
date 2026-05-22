@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import LoginScreen from '@/components/LoginScreen';
 import LandingScreen from '@/components/LandingScreen';
 import AppScreen from '@/components/AppScreen';
 import { useInventario } from '@/hooks/useInventario';
@@ -22,7 +23,8 @@ interface FiltrosData {
   almoxarifados: Record<string, Almoxarifado[]>;
 }
 
-type Tela = 'landing' | 'app';
+type Tela = 'login' | 'landing' | 'app';
+export type PerfilAcesso = 'contagem' | 'monitoramento' | null;
 
 interface Toast {
   id: number;
@@ -31,7 +33,8 @@ interface Toast {
 }
 
 export default function HomePage() {
-  const [tela, setTela] = useState<Tela>('landing');
+  const [tela, setTela] = useState<Tela>('login');
+  const [perfil, setPerfil] = useState<PerfilAcesso>(null);
   const [filtros, setFiltros] = useState<FiltrosData>({ estados: [], almoxarifados: {} });
   const [carregandoFiltros, setCarregandoFiltros] = useState(true);
   const [ufSelecionada, setUfSelecionada] = useState('');
@@ -42,7 +45,7 @@ export default function HomePage() {
     fetch('/api/filtros')
       .then((r) => r.json())
       .then((data: FiltrosData) => setFiltros(data))
-      .catch(() => adicionarToast('Erro ao conectar ao banco de dados Neon.', 'erro'))
+      .catch(() => adicionarToast('Erro ao conectar ao banco de dados.', 'erro'))
       .finally(() => setCarregandoFiltros(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,6 +56,20 @@ export default function HomePage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
+  const handleSelecionarPerfil = useCallback((p: 'contagem' | 'monitoramento') => {
+    setPerfil(p);
+    inventario.resetar();
+    
+    if (p === 'monitoramento') {
+      setUfSelecionada('todos');
+      inventario.setAba('monitoramento');
+      setTela('app');
+    } else {
+      inventario.setAba('contagem');
+      setTela('landing');
+    }
+  }, [inventario]);
+
   const handleSelecionarUF = useCallback((uf: string) => {
     setUfSelecionada(uf);
     inventario.resetar();
@@ -62,8 +79,9 @@ export default function HomePage() {
 
   const handleVoltarLanding = useCallback(() => {
     inventario.resetar();
+    setPerfil(null);
     setUfSelecionada('');
-    setTela('landing');
+    setTela('login');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -73,7 +91,9 @@ export default function HomePage() {
 
   return (
     <>
-      {tela === 'landing' ? (
+      {tela === 'login' ? (
+        <LoginScreen onSelecionarPerfil={handleSelecionarPerfil} />
+      ) : tela === 'landing' ? (
         <LandingScreen
           estados={filtros.estados}
           carregando={carregandoFiltros}
@@ -85,6 +105,7 @@ export default function HomePage() {
           almoxarifados={almoxsParaUF}
           todos={filtros.almoxarifados}
           inventario={inventario}
+          perfil={perfil}
           onVoltarLanding={handleVoltarLanding}
           toast={adicionarToast}
         />

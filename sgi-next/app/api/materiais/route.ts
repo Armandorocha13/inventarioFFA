@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
         codmat: row.codmat ? row.codmat.trim() : '',
         descricao: row.descricao ? row.descricao.trim() : '',
         unidade: row.unidade ? row.unidade.trim() : '',
-        saldoAtual: row.saldoAtual !== null ? parseFloat(row.saldoAtual) : 0,
-        precoUnitario: row.precoUnitario !== null ? parseFloat(row.precoUnitario) : 0,
-        ultimaAtualizacao: new Date().toISOString(),
+        saldoAtual: row.saldoAtual !== null && row.saldoAtual !== undefined ? parseFloat(row.saldoAtual) : 0,
+        precoUnitario: row.precoUnitario !== null && row.precoUnitario !== undefined ? parseFloat(row.precoUnitario) : 0,
+        ultimaAtualizacao: row.ultimaAtualizacao ? row.ultimaAtualizacao : new Date().toISOString(),
         ultimaContagemFisica: row.ultimaContagemFisica !== null && row.ultimaContagemFisica !== undefined ? parseFloat(row.ultimaContagemFisica) : undefined,
       });
     });

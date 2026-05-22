@@ -156,14 +156,6 @@ export default function TabContagem({
         </div>
       </div>
       
-      {/* Atalho para Monitoramento */}
-      {prog.contados > 0 && (
-        <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-          <button className="btn btn-secondary" style={{ fontSize: '0.8rem' }} onClick={() => setAba('monitoramento')}>
-            <i className="fas fa-chart-bar"></i> Ver Painel de Monitoramento
-          </button>
-        </div>
-      )}
     </div>
   );
 }
