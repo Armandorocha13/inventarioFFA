@@ -213,16 +213,102 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         </div>
       </div>
 
+      {/* Curva ABC Section */}
+      <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
+        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.15rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <i className="fas fa-chart-pie" style={{ color: 'var(--text-main)' }}></i> Classificação Curva ABC (Base de Dados De-Para)
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          {(
+            [
+              { classe: 'A', label: 'Alta Relevância', total: valorA, pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorA / abc.valorTotalEstoque) * 100) : 0 },
+              { classe: 'B', label: 'Média Relevância', total: valorB, pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorB / abc.valorTotalEstoque) * 100) : 0 },
+              { classe: 'C', label: 'Baixa Relevância', total: valorC, pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorC / abc.valorTotalEstoque) * 100) : 0 },
+            ] as const
+          ).map(({ classe, label, total, pctVal }) => {
+            const count = abc.classes[classe].length;
+            const pctItens = totalItens > 0 ? Math.round((count / totalItens) * 100) : 0;
+            const accClasse = abc.acuracidadePorClasse[classe];
+            
+            return (
+              <div key={classe} style={{ 
+                background: 'var(--glass-bg-strong)', 
+                border: '1px solid var(--glass-border)', 
+                borderRadius: '12px', 
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Border accent */}
+                <div style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  bottom: 0, 
+                  width: '4px', 
+                  background: classe === 'A' ? 'var(--text-main)' : classe === 'B' ? 'var(--text-muted)' : 'var(--border-color)' 
+                }} />
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: "'Outfit', sans-serif" }}>
+                    Classe {classe}
+                  </span>
+                  <span className="badge" style={{ 
+                    background: classe === 'A' ? 'var(--text-main)' : classe === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
+                    color: classe === 'A' ? 'var(--bg-body)' : '#fff'
+                  }}>
+                    {label}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '8px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Itens cadastrados:</span>
+                    <span style={{ fontWeight: 600 }}>{count} ({pctItens}%)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Valor em estoque:</span>
+                    <span style={{ fontWeight: 600 }}>{formatarMoeda(total)} ({pctVal}%)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Acuracidade Física:</span>
+                    <span style={{ 
+                      fontWeight: 700, 
+                      color: accClasse === 100 ? 'var(--success)' : accClasse >= 80 ? 'var(--warning)' : 'var(--danger)'
+                    }}>
+                      {accClasse}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="progress-track" style={{ height: '6px', marginLeft: '8px' }}>
+                  <div style={{ 
+                    width: `${pctVal}%`, 
+                    height: '100%', 
+                    borderRadius: '3px', 
+                    background: classe === 'A' ? 'var(--text-main)' : classe === 'B' ? 'var(--text-muted)' : 'var(--border-color)'
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Tabela Analítica */}
       <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
-        <h3 className="card-title" style={{ marginTop: '2rem' }}>
+        <h3 className="card-title">
           <i className="fas fa-list"></i> Tabela Analítica de Materiais
         </h3>
         <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <tr>
-                <th>#</th><th style={{ whiteSpace: 'normal', minWidth: '150px' }}>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
+                <th>#</th><th>Classe</th><th style={{ whiteSpace: 'normal', minWidth: '150px' }}>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
               </tr>
             </thead>
             <tbody>
@@ -239,6 +325,14 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                 return (
                   <tr key={item.descricao}>
                     <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
+                    <td>
+                      <span className="badge" style={{ 
+                        background: item.classeABC === 'A' ? 'var(--text-main)' : item.classeABC === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
+                        color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff'
+                      }}>
+                        Classe {item.classeABC || 'C'}
+                      </span>
+                    </td>
                     <td style={{ whiteSpace: 'normal', minWidth: '150px' }}><strong>{item.descricao}</strong></td>
                     <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
                     <td>

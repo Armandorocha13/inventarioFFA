@@ -14,6 +14,8 @@ export interface Material {
   saldoAtual: number;
   precoUnitario: number;
   ultimaAtualizacao: string;
+  ultimaContagemFisica?: number;
+  classeABC?: string | null;
 }
 
 export interface Contagem {
@@ -201,29 +203,19 @@ export function classificarCurvaABC(
     valorEstoque: m.saldoAtual * (m.precoUnitario || 0),
   }));
 
-  itensComValor.sort((a, b) => b.valorEstoque - a.valorEstoque);
-
   const valorTotalEstoque = itensComValor.reduce((acc, i) => acc + i.valorEstoque, 0);
   const classes: CurvaABCResult['classes'] = { A: [], B: [], C: [] };
-  let acumulado = 0;
 
   itensComValor.forEach((item) => {
-    acumulado += item.valorEstoque;
-    const percentualAcumulado = valorTotalEstoque > 0 ? (acumulado / valorTotalEstoque) * 100 : 0;
-    if (percentualAcumulado <= 80 || classes.A.length === 0) {
+    const cls = (item.classeABC || 'C').toUpperCase();
+    if (cls === 'A') {
       classes.A.push(item);
-    } else if (percentualAcumulado <= 95) {
+    } else if (cls === 'B') {
       classes.B.push(item);
     } else {
       classes.C.push(item);
     }
   });
-
-  if (valorTotalEstoque === 0) {
-    classes.A = [];
-    classes.B = [];
-    classes.C = [...itensComValor];
-  }
 
   const acuracidadePorClasse = { A: 100, B: 100, C: 100 };
   (['A', 'B', 'C'] as const).forEach((classe) => {

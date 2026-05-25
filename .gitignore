@@ -34,3 +34,15 @@ Thumbs.db
 # Banco de dados local (protegido)
 db/
 
+# Planilhas de dados de grande porte
+*.xlsx
+
+# Scripts de diagnóstico e temporários
+test_*.js
+check_table.js
+inspect_*.js
+map_curva_abc*.js
+revert_db.js
+update_view.js
+verify_views.js
+

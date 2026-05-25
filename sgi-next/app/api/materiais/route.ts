@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         precoUnitario: row.precoUnitario !== null && row.precoUnitario !== undefined ? parseFloat(row.precoUnitario) : 0,
         ultimaAtualizacao: row.ultimaAtualizacao ? row.ultimaAtualizacao : new Date().toISOString(),
         ultimaContagemFisica: row.ultimaContagemFisica !== null && row.ultimaContagemFisica !== undefined ? parseFloat(row.ultimaContagemFisica) : undefined,
+        classeABC: row.classeABC ? row.classeABC.trim() : null,
       });
     });
 
