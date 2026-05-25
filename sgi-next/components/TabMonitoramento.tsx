@@ -84,6 +84,43 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     return 'var(--text-main)';
   }, []);
 
+  const exportarAnalitico = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert('Biblioteca XLSX não carregada.');
+      return;
+    }
+
+    const dados = materiaisAnalitico.map((item, i) => {
+      const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+        const val = contagens[id]?.novaQtd;
+        if (val !== undefined) return (acc || 0) + val;
+        return acc;
+      }, undefined);
+      
+      const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
+      const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+
+      return {
+        '#': i + 1,
+        'Classe': `Classe ${item.classeABC || 'C'}`,
+        'Descrição': item.descricao,
+        'Saldo Sistêmico': item.saldoAtual,
+        'Saldo Físico': fisico !== undefined ? fisico : '—',
+        'Preço Unitário': item.precoUnitario,
+        'Total Sistêmico (R$)': item.valorEstoque,
+        'Total Físico (R$)': totalFisico !== undefined ? totalFisico : '—',
+        'Diferença Final (R$)': totalFinal !== undefined ? totalFinal : '—',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tabela Analítica');
+    XLSX.writeFile(wb, `SGI_Tabela_Analitica_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+  }, [materiaisAnalitico, contagens]);
+
   return (
     <div>
       {/* KPIs */}
@@ -301,8 +338,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
       {/* Tabela Analítica */}
       <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
-        <h3 className="card-title">
-          <i className="fas fa-list"></i> Tabela Analítica de Materiais
+        <h3 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <span>
+            <i className="fas fa-list"></i> Tabela Analítica de Materiais
+          </span>
+          <button className="btn btn-secondary btn-excel" onClick={exportarAnalitico} style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+            <i className="fas fa-file-excel"></i> Exportar Analítico
+          </button>
         </h3>
         <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
