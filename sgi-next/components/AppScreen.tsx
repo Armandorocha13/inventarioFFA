@@ -45,6 +45,34 @@ export default function AppScreen({
   const [tema, setTema] = useState<'claro' | 'escuro'>('claro');
   const [scrolled, setScrolled] = useState(false);
 
+  // Novos filtros dinâmicos
+  const [filtroEstado, setFiltroEstado] = useState(uf || 'todos');
+  const [filtroClasse, setFiltroClasse] = useState('todas');
+
+  const NOME_ESTADOS: Record<string, string> = {
+    RJ: 'Rio de Janeiro',
+    ES: 'Espírito Santo',
+    SP: 'São Paulo',
+    PR: 'Paraná',
+    MG: 'Minas Gerais',
+  };
+
+  const getProjetosFiltrados = useCallback(() => {
+    const base = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
+    if (filtroEstado === 'todos') return base;
+    return base.filter((a) => {
+      let contractUf = 'RJ';
+      const cityUpper = (a.cidade || '').toUpperCase();
+      if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
+      else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
+      else if (cityUpper === 'CURITIBA') contractUf = 'PR';
+      else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+      return contractUf === filtroEstado;
+    });
+  }, [uf, todos, almoxarifados, filtroEstado]);
+
+  const projetosFiltrados = getProjetosFiltrados();
+
   // Scroll effect para header blur
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -126,6 +154,26 @@ export default function AppScreen({
     }
   }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados]);
 
+  const handleEstadoChange = useCallback((estado: string) => {
+    setFiltroEstado(estado);
+    // Reset selected contract if it does not belong to the selected state
+    if (estado !== 'todos' && codigoAlmox !== 'todos' && codigoAlmox !== '') {
+      const base = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
+      const selectAlmox = base.find((a) => a.codigo === codigoAlmox);
+      if (selectAlmox) {
+        let contractUf = 'RJ';
+        const cityUpper = (selectAlmox.cidade || '').toUpperCase();
+        if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
+        else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
+        else if (cityUpper === 'CURITIBA') contractUf = 'PR';
+        else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+        if (contractUf !== estado) {
+          handleAlmoxChange('todos');
+        }
+      }
+    }
+  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange]);
+
   const handleSalvarContagens = useCallback(async () => {
     setSalvando(true);
     try {
@@ -168,6 +216,29 @@ export default function AppScreen({
     if (aba === 'contagem') return 'Contagem Ativa';
     return 'Painel de Monitoramento';
   };
+
+  // Dynamic frontend filtering for Estado, Projeto, and Classificacao
+  const materiaisFiltrados = state.materiaisVisiveis.filter((m) => {
+    // 1. Filter by Estado
+    if (filtroEstado !== 'todos') {
+      let matUf = 'RJ';
+      const origemUpper = (m.origem || '').toUpperCase();
+      if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') matUf = 'ES';
+      else if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') matUf = 'SP';
+      else if (origemUpper === 'CURITIBA') matUf = 'PR';
+      else if (origemUpper === 'MINAS GERAIS') matUf = 'MG';
+      
+      if (matUf !== filtroEstado) return false;
+    }
+
+    // 2. Filter by Classificação
+    if (filtroClasse !== 'todas') {
+      const cls = (m.classeABC || 'C').toUpperCase();
+      if (cls !== filtroClasse.toUpperCase()) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div id="appScreen">
@@ -226,31 +297,52 @@ export default function AppScreen({
 
       {/* Conteúdo Principal */}
       <main className="app-main">
-        {/* Filtros */}
-        <section className="card filters-card app-filters" style={{ display: perfil === 'monitoramento' ? 'none' : 'block' }}>
+        {/* Filtros da Aplicação */}
+        <section className="card filters-card app-filters">
           <div className="filtros-grid">
             <div className="form-group">
-              <label htmlFor="uf2"><i className="fas fa-map-marker-alt"></i> Estado (UF)</label>
-              <select id="uf2" className="form-control" value={uf} disabled>
-                <option value={uf}>{uf === 'todos' ? 'Todas as bases' : uf}</option>
-                {todasUFs.filter((u) => u !== uf).map((u) => (
-                  <option key={u} value={u}>{u}</option>
+              <label htmlFor="selectEstado"><i className="fas fa-map-marker-alt"></i> Estado (UF)</label>
+              <select
+                id="selectEstado"
+                className="form-control"
+                value={filtroEstado}
+                onChange={(e) => handleEstadoChange(e.target.value)}
+              >
+                <option value="todos">Todos os Estados</option>
+                {todasUFs.map((ufSigla) => (
+                  <option key={ufSigla} value={ufSigla}>
+                    {NOME_ESTADOS[ufSigla] || ufSigla}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="form-group">
-              <label htmlFor="almox2"><i className="fas fa-file-contract"></i> CONTRATO</label>
+              <label htmlFor="selectProjeto"><i className="fas fa-file-contract"></i> Projeto (Contrato)</label>
               <select
-                id="almox2"
+                id="selectProjeto"
                 className="form-control"
                 value={codigoAlmox}
                 onChange={(e) => handleAlmoxChange(e.target.value)}
               >
                 <option value="">Selecione o contrato...</option>
-                <option value="todos">Todos os contratos</option>
-                {almoxsParaSelect.map((a) => (
+                <option value="todos">Todos os projetos</option>
+                {projetosFiltrados.map((a) => (
                   <option key={a.codigo} value={a.codigo}>{a.label}</option>
                 ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="selectClasse"><i className="fas fa-tags"></i> Classificação (ABC)</label>
+              <select
+                id="selectClasse"
+                className="form-control"
+                value={filtroClasse}
+                onChange={(e) => setFiltroClasse(e.target.value)}
+              >
+                <option value="todas">Todas as Classes</option>
+                <option value="A">Classe A</option>
+                <option value="B">Classe B</option>
+                <option value="C">Classe C</option>
               </select>
             </div>
             {codigoAlmox && (
@@ -309,7 +401,7 @@ export default function AppScreen({
               {state.abaAtiva === 'contagem' && (
                 <TabContagem
                   materiais={state.materiais}
-                  materiaisVisiveis={state.materiaisVisiveis}
+                  materiaisVisiveis={materiaisFiltrados}
                   contagens={state.contagens}
                   colunaOrdenacao={state.colunaOrdenacao}
                   direcaoOrdenacao={state.direcaoOrdenacao}
@@ -321,7 +413,7 @@ export default function AppScreen({
                 />
               )}
               {state.abaAtiva === 'monitoramento' && (
-                <TabMonitoramento materiais={state.materiaisVisiveis} contagens={state.contagens} />
+                <TabMonitoramento materiais={materiaisFiltrados} contagens={state.contagens} />
               )}
             </>
           )}
