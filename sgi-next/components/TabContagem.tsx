@@ -38,8 +38,8 @@ export default function TabContagem({
   onAbrirModal,
   setAba,
 }: TabContagemProps) {
-  const prog = calcularProgresso(materiais, contagens);
-  const stats = calcularAcuracidade(materiais, contagens);
+  const prog = calcularProgresso(materiaisVisiveis, contagens);
+  const stats = calcularAcuracidade(materiaisVisiveis, contagens);
 
   const exportarExcel = useCallback(() => {
     if (typeof window === 'undefined') return;
