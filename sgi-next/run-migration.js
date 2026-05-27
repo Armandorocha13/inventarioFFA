@@ -54,7 +54,7 @@ async function runMigration() {
         se.codmat,
         se.descricao,
         MAX(se.unid) AS unidade,
-        SUM(se.saldo_disponivel) AS "saldoAtual",
+        SUM(se.saldo_estoque) AS "saldoAtual",
         MAX(se.valor) AS "precoUnitario",
         MAX(pc.quantidade_contada) AS "ultimaContagemFisica"
       FROM saldo_estoque se
