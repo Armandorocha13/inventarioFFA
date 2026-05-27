@@ -67,7 +67,7 @@ export function filtrarEProcessarDados(rows, headerMapping, dbColumns) {
     const rawCodmat = row[headerIndices['codmat']];
     const codmatStr = rawCodmat !== undefined && rawCodmat !== null ? String(rawCodmat).trim() : '';
 
-    if (codmatStr.startsWith('1000')) {
+    if (codmatStr.startsWith('100')) {
       const mappedRow = {};
 
       dbColumns.forEach(col => {
