@@ -137,15 +137,17 @@ export default function AppScreen({
         cidadesValidas = almoxarifados.map((a) => a.cidade);
       }
       const materiais = await carregarMateriais(codigo, cidadesValidas);
-      // Restaura rascunho
-      const chave = getChaveRascunho(uf, codigo);
-      if (chave) {
-        const salvo = localStorage.getItem(chave);
-        if (salvo) {
-          try {
-            restaurarContagens(JSON.parse(salvo));
-            toast('Rascunho recuperado com sucesso!', 'sucesso');
-          } catch { /* ignora */ }
+      // Restaura rascunho apenas para perfil de contagem (Auditor)
+      if (perfil === 'contagem') {
+        const chave = getChaveRascunho(uf, codigo);
+        if (chave) {
+          const salvo = localStorage.getItem(chave);
+          if (salvo) {
+            try {
+              restaurarContagens(JSON.parse(salvo));
+              toast('Rascunho recuperado com sucesso!', 'sucesso');
+            } catch { /* ignora */ }
+          }
         }
       }
       toast(`Carregados ${materiais.length} itens`, 'info');
@@ -196,7 +198,7 @@ export default function AppScreen({
       toast(`${payload.length} contagens gravadas com sucesso!`, 'sucesso');
       // Mantém o rascunho para não zerar a tela ao dar F5
       const chave = getChaveRascunho(uf, codigoAlmox);
-      // if (chave) localStorage.removeItem(chave); // Removido para manter a sessão
+      if (chave) localStorage.removeItem(chave);
       // Recarrega materiais
       await carregarMateriais(codigoAlmox);
     } catch {
