@@ -104,7 +104,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
       return {
         '#': i + 1,
-        'Classe': `Classe ${item.classeABC || 'C'}`,
+        'Classe': item.classeABC ? `Classe ${item.classeABC}` : '—',
         'Descrição': item.descricao,
         'Saldo Sistêmico': item.saldoAtual,
         'Saldo Físico': fisico !== undefined ? fisico : '—',
@@ -368,12 +368,16 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                   <tr key={item.descricao}>
                     <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
                     <td>
-                      <span className="badge" style={{ 
-                        background: item.classeABC === 'A' ? 'var(--text-main)' : item.classeABC === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
-                        color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff'
-                      }}>
-                        Classe {item.classeABC || 'C'}
-                      </span>
+                      {item.classeABC ? (
+                        <span className="badge" style={{ 
+                          background: item.classeABC === 'A' ? 'var(--text-main)' : item.classeABC === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
+                          color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff'
+                        }}>
+                          Classe {item.classeABC}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
                     </td>
                     <td style={{ whiteSpace: 'normal', minWidth: '150px' }}><strong>{item.descricao}</strong></td>
                     <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
