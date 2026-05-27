@@ -130,6 +130,7 @@ export default function TabContagem({
                   <i className={getSortIcon(col)}></i> {label}
                 </th>
               ))}
+              {perfil !== 'contagem' && <th>Curva</th>}
               {perfil !== 'contagem' && <th>Desvio</th>}
               <th>
                 <i className={getSortIcon('ultimaAtualizacao')} onClick={() => onOrdenarColuna('ultimaAtualizacao')} style={{ cursor: 'pointer' }}></i> Última Atualização
@@ -220,12 +221,29 @@ function MaterialRow({ material: m, contagem, onRegistrar, perfil }: MaterialRow
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const classeColor = (cls: string | null | undefined) => {
+    if (cls === 'A') return { background: 'linear-gradient(135deg,#e63946,#c1121f)', color: '#fff' };
+    if (cls === 'B') return { background: 'linear-gradient(135deg,#f4a261,#e76f51)', color: '#fff' };
+    return { background: 'linear-gradient(135deg,#2d6a4f,#52b788)', color: '#fff' };
+  };
+
   return (
     <tr data-id={m.id} className={isEditado ? 'linha-editada' : ''}>
       <td><strong>{sanitizarTexto(m.origem)}</strong></td>
       <td title={m.descricao}>{truncarTexto(m.descricao, 35)}</td>
       <td><span className="badge-unidade">{sanitizarTexto(m.unidade)}</span></td>
       {perfil !== 'contagem' && <td><span className={`badge ${badgeClass}`}>{m.saldoAtual}</span></td>}
+      {perfil !== 'contagem' && (
+        <td style={{ textAlign: 'center' }}>
+          {m.classeABC ? (
+            <span style={{ ...classeColor(m.classeABC), padding: '3px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+              {m.classeABC}
+            </span>
+          ) : (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>—</span>
+          )}
+        </td>
+      )}
       {perfil !== 'contagem' && (
         <td className="desvio-cell">
           {desvio === null ? (
