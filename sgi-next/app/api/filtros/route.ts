@@ -19,6 +19,12 @@ export async function GET() {
       const contrato = row.contrato;
 
       if (!cidade || !contrato) return;
+
+      // 🚧 PILOT TEST LOCK: Somente Rio de Janeiro - Contrato 21
+      const cidadeUpper = cidade.toUpperCase();
+      if (cidadeUpper !== 'RIO DE JANEIRO' || contrato !== 21) {
+        return;
+      }
       
       const codigo = `${cidade}|${contrato}`;
       if (codigosVistos.has(codigo)) return;
@@ -26,7 +32,6 @@ export async function GET() {
 
       let ufSigla = 'RJ';
       let ufNome = 'Rio de Janeiro';
-      const cidadeUpper = cidade.toUpperCase();
 
       if (cidadeUpper === 'ESPIRITO SANTO') { ufSigla = 'ES'; ufNome = 'Espírito Santo'; }
       else if (cidadeUpper === 'SÃO PAULO') { ufSigla = 'SP'; ufNome = 'São Paulo'; }

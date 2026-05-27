@@ -410,6 +410,7 @@ export default function AppScreen({
                   onOrdenarColuna={ordenarColuna}
                   onAbrirModal={() => setModalAberto(true)}
                   setAba={setAba}
+                  perfil={perfil}
                 />
               )}
               {state.abaAtiva === 'monitoramento' && (
@@ -431,6 +432,7 @@ export default function AppScreen({
           salvando={salvando}
           onConfirmar={handleSalvarContagens}
           onCancelar={() => setModalAberto(false)}
+          perfil={perfil}
         />
       )}
     </div>

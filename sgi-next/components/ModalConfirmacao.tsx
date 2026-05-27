@@ -2,6 +2,7 @@
 
 import { calcularProgresso } from '@/lib/auxiliaresUI';
 import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
+import type { PerfilAcesso } from '@/app/page';
 
 interface ModalConfirmacaoProps {
   materiais: Material[];
@@ -9,6 +10,7 @@ interface ModalConfirmacaoProps {
   salvando: boolean;
   onConfirmar: () => void;
   onCancelar: () => void;
+  perfil?: PerfilAcesso;
 }
 
 export default function ModalConfirmacao({
@@ -17,6 +19,7 @@ export default function ModalConfirmacao({
   salvando,
   onConfirmar,
   onCancelar,
+  perfil,
 }: ModalConfirmacaoProps) {
   const prog = calcularProgresso(materiais, contagens);
   const divergentes = Object.entries(contagens).filter(([id, c]) => {
@@ -41,10 +44,17 @@ export default function ModalConfirmacao({
               <span id="modalResumoTotal">{prog.contados}</span>
               <small>Itens Auditados</small>
             </div>
-            <div className="stat-box">
-              <span id="modalResumoDivergencias">{divergentes}</span>
-              <small>Divergências</small>
-            </div>
+            {perfil === 'contagem' ? (
+              <div className="stat-box">
+                <span>{prog.percentual}%</span>
+                <small>Progresso Geral</small>
+              </div>
+            ) : (
+              <div className="stat-box">
+                <span id="modalResumoDivergencias">{divergentes}</span>
+                <small>Divergências</small>
+              </div>
+            )}
           </div>
         </div>
         <div className="modal-actions">

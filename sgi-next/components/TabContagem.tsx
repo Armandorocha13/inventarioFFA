@@ -12,6 +12,7 @@ import {
 import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
 import type { AbaAtiva } from '@/hooks/useInventario';
 import { prepararDadosExport, gerarNomeArquivo } from '@/lib/exportacao';
+import type { PerfilAcesso } from '@/app/page';
 
 interface TabContagemProps {
   materiais: Material[];
@@ -24,6 +25,7 @@ interface TabContagemProps {
   onOrdenarColuna: (coluna: keyof Material) => void;
   onAbrirModal: () => void;
   setAba: (aba: AbaAtiva) => void;
+  perfil?: PerfilAcesso;
 }
 
 export default function TabContagem({
@@ -37,6 +39,7 @@ export default function TabContagem({
   onOrdenarColuna,
   onAbrirModal,
   setAba,
+  perfil,
 }: TabContagemProps) {
   const prog = calcularProgresso(materiaisVisiveis, contagens);
   const stats = calcularAcuracidade(materiaisVisiveis, contagens);
@@ -71,21 +74,43 @@ export default function TabContagem({
     <div>
       {/* KPIs */}
       <div className="stats-container animate-fade-in">
-        <div className="stat-card kpi-acuracidade">
-          <div className="stat-label"><i className="fas fa-bullseye"></i> Acuracidade Física</div>
-          <div className="stat-number">{stats.taxaAcuracidade}%</div>
-          <div className="stat-desc">Percentual de acertos dos itens contados</div>
-        </div>
-        <div className="stat-card kpi-contados">
-          <div className="stat-label"><i className="fas fa-check-double"></i> Itens Auditados</div>
-          <div className="stat-number">{stats.contados}</div>
-          <div className="stat-desc">Aguardando contagem física</div>
-        </div>
-        <div className="stat-card kpi-divergentes">
-          <div className="stat-label"><i className="fas fa-exclamation-circle"></i> Itens Divergentes</div>
-          <div className="stat-number">{stats.divergentes}</div>
-          <div className="stat-desc">Contagens físicas divergentes</div>
-        </div>
+        {perfil === 'contagem' ? (
+          <>
+            <div className="stat-card kpi-total">
+              <div className="stat-label"><i className="fas fa-boxes"></i> Total de Materiais</div>
+              <div className="stat-number">{prog.total}</div>
+              <div className="stat-desc">Itens cadastrados no contrato</div>
+            </div>
+            <div className="stat-card kpi-contados">
+              <div className="stat-label"><i className="fas fa-check-double"></i> Itens Auditados</div>
+              <div className="stat-number">{prog.contados}</div>
+              <div className="stat-desc">Itens com contagem física registrada</div>
+            </div>
+            <div className="stat-card kpi-restantes">
+              <div className="stat-label"><i className="fas fa-hourglass-half"></i> Itens Restantes</div>
+              <div className="stat-number">{prog.total - prog.contados}</div>
+              <div className="stat-desc">Aguardando contagem física</div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat-card kpi-acuracidade">
+              <div className="stat-label"><i className="fas fa-bullseye"></i> Acuracidade Física</div>
+              <div className="stat-number">{stats.taxaAcuracidade}%</div>
+              <div className="stat-desc">Percentual de acertos dos itens contados</div>
+            </div>
+            <div className="stat-card kpi-contados">
+              <div className="stat-label"><i className="fas fa-check-double"></i> Itens Auditados</div>
+              <div className="stat-number">{stats.contados}</div>
+              <div className="stat-desc">Aguardando contagem física</div>
+            </div>
+            <div className="stat-card kpi-divergentes">
+              <div className="stat-label"><i className="fas fa-exclamation-circle"></i> Itens Divergentes</div>
+              <div className="stat-number">{stats.divergentes}</div>
+              <div className="stat-desc">Contagens físicas divergentes</div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabela */}
@@ -98,14 +123,14 @@ export default function TabContagem({
                   { col: 'origem', label: 'Origem' },
                   { col: 'descricao', label: 'Descrição' },
                   { col: 'unidade', label: 'UN' },
-                  { col: 'saldoAtual', label: 'Saldo Sistema' },
+                  ...(perfil !== 'contagem' ? [{ col: 'saldoAtual', label: 'Saldo Sistema' }] : []),
                 ] as { col: keyof Material; label: string }[]
               ).map(({ col, label }) => (
                 <th key={col} data-sort={col} onClick={() => onOrdenarColuna(col)} style={{ cursor: 'pointer' }}>
                   <i className={getSortIcon(col)}></i> {label}
                 </th>
               ))}
-              <th>Desvio</th>
+              {perfil !== 'contagem' && <th>Desvio</th>}
               <th>
                 <i className={getSortIcon('ultimaAtualizacao')} onClick={() => onOrdenarColuna('ultimaAtualizacao')} style={{ cursor: 'pointer' }}></i> Última Atualização
               </th>
@@ -115,7 +140,7 @@ export default function TabContagem({
           <tbody>
             {materiaisVisiveis.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-4 text-muted">Nenhum material encontrado.</td>
+                <td colSpan={perfil === 'contagem' ? 5 : 7} className="text-center py-4 text-muted">Nenhum material encontrado.</td>
               </tr>
             ) : (
               materiaisVisiveis.map((m) => (
@@ -124,6 +149,7 @@ export default function TabContagem({
                   material={m}
                   contagem={contagens[m.id]}
                   onRegistrar={onRegistrarContagem}
+                  perfil={perfil}
                 />
               ))
             )}
@@ -166,9 +192,10 @@ interface MaterialRowProps {
   material: Material;
   contagem: { novaQtd: number; observacao: string } | undefined;
   onRegistrar: (id: number, novaQtd: number | null, observacao: string) => void;
+  perfil?: PerfilAcesso;
 }
 
-function MaterialRow({ material: m, contagem, onRegistrar }: MaterialRowProps) {
+function MaterialRow({ material: m, contagem, onRegistrar, perfil }: MaterialRowProps) {
   const qtdRef = useRef<HTMLInputElement>(null);
 
   const badgeClass = getBadgeClass(m.saldoAtual);
@@ -198,18 +225,20 @@ function MaterialRow({ material: m, contagem, onRegistrar }: MaterialRowProps) {
       <td><strong>{sanitizarTexto(m.origem)}</strong></td>
       <td title={m.descricao}>{truncarTexto(m.descricao, 35)}</td>
       <td><span className="badge-unidade">{sanitizarTexto(m.unidade)}</span></td>
-      <td><span className={`badge ${badgeClass}`}>{m.saldoAtual}</span></td>
-      <td className="desvio-cell">
-        {desvio === null ? (
-          <span className="badge-diff igual">—</span>
-        ) : desvio === 0 ? (
-          <span className="badge-diff igual" style={{ backgroundColor: 'rgba(108,117,125,0.1)', color: '#6c757d', padding: '4px 8px', borderRadius: '12px' }}><i className="fas fa-check"></i> 0</span>
-        ) : desvio > 0 ? (
-          <span className="badge-diff sobra" style={{ backgroundColor: 'rgba(40,167,69,0.1)', color: '#28a745', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}><i className="fas fa-arrow-up"></i> +{desvio}</span>
-        ) : (
-          <span className="badge-diff falta" style={{ backgroundColor: 'rgba(220,53,69,0.1)', color: '#dc3545', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}><i className="fas fa-arrow-down"></i> {desvio}</span>
-        )}
-      </td>
+      {perfil !== 'contagem' && <td><span className={`badge ${badgeClass}`}>{m.saldoAtual}</span></td>}
+      {perfil !== 'contagem' && (
+        <td className="desvio-cell">
+          {desvio === null ? (
+            <span className="badge-diff igual">—</span>
+          ) : desvio === 0 ? (
+            <span className="badge-diff igual" style={{ backgroundColor: 'rgba(108,117,125,0.1)', color: '#6c757d', padding: '4px 8px', borderRadius: '12px' }}><i className="fas fa-check"></i> 0</span>
+          ) : desvio > 0 ? (
+            <span className="badge-diff sobra" style={{ backgroundColor: 'rgba(40,167,69,0.1)', color: '#28a745', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}><i className="fas fa-arrow-up"></i> +{desvio}</span>
+          ) : (
+            <span className="badge-diff falta" style={{ backgroundColor: 'rgba(220,53,69,0.1)', color: '#dc3545', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}><i className="fas fa-arrow-down"></i> {desvio}</span>
+          )}
+        </td>
+      )}
       <td><span className="data-badge">{dataFmt}</span></td>
       <td>
         <input

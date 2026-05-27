@@ -34,6 +34,11 @@ export async function POST(request: NextRequest) {
     for (const item of contagens) {
       const { id, origem, codmat, valorNovo } = item;
 
+      // 🚧 PILOT TEST LOCK: Somente Rio de Janeiro
+      if ((origem || '').trim().toUpperCase() !== 'RIO DE JANEIRO') {
+        continue;
+      }
+
       await client.query(
         `INSERT INTO progresso_contagem (cidade, codmat, quantidade_contada)
          VALUES ($1, $2, $3)

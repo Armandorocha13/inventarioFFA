@@ -10,18 +10,31 @@ export async function GET(request: NextRequest) {
     let query = '';
     let params: (string | number)[] = [];
 
+    // 🚧 PILOT TEST LOCK: Somente Rio de Janeiro - Contrato 21
+    const targetCidade = 'RIO DE JANEIRO';
+    const targetContrato = 21;
+
     if (!cidade || cidade === 'todos' || !contrato || contrato === 'todos') {
-      query = `
-        SELECT * FROM vw_estoque_contagem
-        ORDER BY descricao
-      `;
-    } else {
       query = `
         SELECT * FROM vw_estoque_contagem
         WHERE origem = $1 AND contrato = $2
         ORDER BY descricao
       `;
-      params = [cidade, parseInt(contrato, 10)];
+      params = [targetCidade, targetContrato];
+    } else {
+      const queryCidade = (cidade || '').toUpperCase().trim();
+      const queryContrato = parseInt(contrato || '', 10);
+
+      if (queryCidade !== targetCidade || queryContrato !== targetContrato) {
+        return NextResponse.json([]);
+      }
+
+      query = `
+        SELECT * FROM vw_estoque_contagem
+        WHERE origem = $1 AND contrato = $2
+        ORDER BY descricao
+      `;
+      params = [cidade, queryContrato];
     }
 
     const result = await pool.query(query, params);

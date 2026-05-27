@@ -15,6 +15,7 @@ export async function GET() {
         CURRENT_TIMESTAMP AS timestamp
       FROM vw_estoque_contagem
       WHERE "ultimaContagemFisica" IS NOT NULL
+        AND origem = 'RIO DE JANEIRO' AND contrato = 21
       ORDER BY descricao
       LIMIT 100
     `;
