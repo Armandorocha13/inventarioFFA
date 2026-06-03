@@ -50,7 +50,7 @@ export async function GET() {
       const tipoContrato = contrato === 31 ? 'FERRAMENTARIA E SSO' :
         [21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
 
-      almoxarifados[uf.sigla].push({
+      almoxarifados[ufSigla].push({
         codigo,
         label: `${cidade} - CONTRATO: ${contrato} (${tipoContrato})`,
         cidade,
