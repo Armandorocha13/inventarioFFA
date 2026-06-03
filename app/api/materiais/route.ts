@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   try {
     let query = '';
-    let params: (string | number)[] = [];
+    let params: any[] = [];
 
     if (!cidade || cidade === 'todos' || !contrato || contrato === 'todos') {
       // Sem filtro específico: retorna todos os materiais dos contratos autorizados
