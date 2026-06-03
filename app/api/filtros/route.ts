@@ -1,7 +1,21 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 
-// Mapeamento dinâmico no loop
+// Mapeamento de contrato → UF
+const CONTRATO_UF_MAP: Record<number, { sigla: string; nome: string }> = {
+  21: { sigla: 'RJ', nome: 'Rio de Janeiro' },
+  41: { sigla: 'RJ', nome: 'Rio de Janeiro' },
+  61: { sigla: 'ES', nome: 'Espírito Santo' },
+  62: { sigla: 'ES', nome: 'Espírito Santo' },
+  31: { sigla: 'SP', nome: 'São Paulo' },
+  58: { sigla: 'MG', nome: 'Minas Gerais' },
+  59: { sigla: 'MG', nome: 'Minas Gerais' },
+  71: { sigla: 'PR', nome: 'Paraná' },
+  72: { sigla: 'PR', nome: 'Paraná' },
+};
+
+// Contratos autorizados no sistema
+const CONTRATOS_AUTORIZADOS = new Set(Object.keys(CONTRATO_UF_MAP).map(Number));
 
 export async function GET() {
   try {
@@ -22,35 +36,27 @@ export async function GET() {
 
       if (!cidade || !contrato) return;
 
+      // Filtrar apenas contratos autorizados
+      if (!CONTRATOS_AUTORIZADOS.has(contrato)) return;
+
       const codigo = `${cidade}|${contrato}`;
       if (codigosVistos.has(codigo)) return;
       codigosVistos.add(codigo);
 
-      let ufSigla = 'RJ';
-      let ufNome = 'Rio de Janeiro';
-      const cityUpper = cidade.toUpperCase();
-      
-      if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') {
-        ufSigla = 'ES'; ufNome = 'Espírito Santo';
-      } else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') {
-        ufSigla = 'SP'; ufNome = 'São Paulo';
-      } else if (cityUpper === 'CURITIBA') {
-        ufSigla = 'PR'; ufNome = 'Paraná';
-      } else if (cityUpper === 'MINAS GERAIS') {
-        ufSigla = 'MG'; ufNome = 'Minas Gerais';
+      const uf = CONTRATO_UF_MAP[contrato];
+      if (!uf) return;
+
+      if (!estadosMap.has(uf.sigla)) {
+        estadosMap.set(uf.sigla, { sigla: uf.sigla, nome: uf.nome });
       }
 
-      if (!estadosMap.has(ufSigla)) {
-        estadosMap.set(ufSigla, { sigla: ufSigla, nome: ufNome });
-      }
-
-      if (!almoxarifados[ufSigla]) almoxarifados[ufSigla] = [];
+      if (!almoxarifados[uf.sigla]) almoxarifados[uf.sigla] = [];
 
       // Label amigável indicando o tipo de contrato
       const tipoContrato = contrato === 31 ? 'FERRAMENTARIA E SSO' :
         [21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
 
-      almoxarifados[ufSigla].push({
+      almoxarifados[uf.sigla].push({
         codigo,
         label: `${cidade} - CONTRATO: ${contrato} (${tipoContrato})`,
         cidade,
