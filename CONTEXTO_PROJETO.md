@@ -5,7 +5,17 @@
 
 ## 🏢 O que é o SGI
 
-**SGI (Sistema de Gestão de Inventário)** é uma aplicação web standalone (HTML + CSS + JS puro) para realizar contagem física de materiais em almoxarifados de distribuidoras de energia elétrica nos estados do **RJ** e **ES**.
+**SGI (Sistema de Gestão de Inventário)** é uma aplicação web baseada em Next.js (React + TypeScript) para realizar contagem física de materiais em almoxarifados de distribuidoras de energia elétrica nos estados do **RJ, ES, SP, MG e PR**, conectada a um banco de dados relacional PostgreSQL (Neon DB).
+
+### Contratos ativos por UF
+
+| UF | Estado | Ferramentaria | SSO |
+|----|--------|:---:|:---:|
+| RJ | Rio de Janeiro | 21 | 41 |
+| ES | Espírito Santo | 61 | 62 |
+| SP | São Paulo | 31 | 31 |
+| MG | Minas Gerais | 58 | 59 |
+| PR | Paraná | 71 | 72 |
 
 ---
 
@@ -14,32 +24,47 @@
 ```
 sistemaInventario/
 ├── CONTEXTO_PROJETO.md       ← este arquivo
-├── index.html                ← interface principal (a criar)
-├── package.json              ← npm + Vitest (ESM)
-├── vitest.config.js          ← configuração dos testes
+├── README.md                 ← guia de início do Next.js
+├── package.json              ← scripts do Next.js e Vitest
+├── tsconfig.json             ← configuração do TypeScript
+├── next.config.mjs           ← configuração do Next.js
+├── eslint.config.mjs         ← regras de linting
+├── vitest.config.ts          ← configuração dos testes do Next.js
+├── vitest.setup.ts           ← setup do ambiente de testes (JSDOM)
+├── schema.js                 ← definição de schema do banco
+├── run-migration.js          ← migração para tabelas do banco
+├── deploy.bat                ← script auxiliar de deploy
+├── logo.png                  ← logo da aplicação
 │
-├── css/
-│   └── estilos.css           ← design system completo (a criar)
+├── app/                      ← páginas e rotas da API (App Router)
+│   ├── page.tsx              ← tela principal do inventário
+│   ├── layout.tsx            ← layout global com tema
+│   └── api/                  ← endpoints REST integrados
+│       ├── filtros/route.ts  ← busca UFs e Almoxarifados ativos
+│       ├── materiais/route.ts← lista materiais filtrados
+│       ├── contagem/route.ts ← salva contagem e atualiza saldos
+│       └── historico/route.ts← consulta histórico de auditorias
 │
-├── js/
-│   ├── dadosFonte.js         ← fonte de dados externa (sem mocks embutidos)
-│   ├── filtros.js            ← filtro multi-coluna, ordenação, debounce
-│   ├── validacao.js          ← validação de quantidades e observações
-│   ├── historico.js          ← log de contagens (quem/quando/antes→depois)
-│   ├── exportacao.js         ← preparação de dados limpos para Excel
-│   ├── auxiliaresUI.js       ← funções puras de UI (formatação, badges, progresso)
-│   └── aplicacao.js          ← orquestrador principal, integra todos os módulos (a criar)
+├── components/               ← componentes reutilizáveis React (UI e modal)
+│   ├── ui/                   ← componentes base de UI
+│   ├── ConfirmModal.tsx      ← modal de confirmação de contagem
+│   ├── InventoryTable.tsx    ← tabela interativa com busca/ordenação
+│   └── HistoryTab.tsx        ← aba de monitoramento do histórico
 │
-└── tests/
-    ├── dadosFonte.test.js     ← testes da fonte de dados
-    ├── filtros.test.js        ← 17 testes ✅
-    ├── validacao.test.js      ← 16 testes ✅
-    ├── historico.test.js      ← 16 testes ✅
-    ├── exportacao.test.js     ← 11 testes ✅
-    └── auxiliaresUI.test.js   ← 15 testes ✅
+├── hooks/                    ← hooks personalizados para estado e lógica
+│   └── useInventario.ts      ← gerencia filtros, paginação, busca e mutações
+│
+├── lib/                      ← utilitários globais de conexão e dados
+│   ├── db.ts                 ← pool de conexões com o Neon DB
+│   └── utils.ts              ← funções auxiliares e helpers de estilo
+│
+├── docs/                     ← Documentação e Planilhas
+│   └── planilhas/            ← Arquivos Excel (.xlsx)
+│
+├── public/                   ← arquivos estáticos (logo, ícones)
+│
+└── __tests__/                ← testes unitários e de integração (Vitest + Testing Library)
 ```
-
-**Total: testes passando ✅**
 
 ---
 
@@ -47,111 +72,73 @@ sistemaInventario/
 
 ### Fluxo principal do usuário
 1. Seleciona **Estado (UF)** → RJ ou ES
-2. Seleciona **Almoxarifado** (código ex: RJO, VRD, CPS...)
-3. Sistema carrega a **lista de materiais** com saldo atual
+2. Seleciona **Almoxarifado** (cidade e contrato)
+3. Sistema carrega a **lista de materiais** com saldo atual direto do banco de dados
 4. Usuário digita a **nova contagem** por item
 5. Pode adicionar **observação** em cada item (divergências)
 6. Visualiza a **barra de progresso** (X de Y itens contados)
 7. Clica em **FINALIZAR** → modal de confirmação exibe resumo
-8. Salva a contagem (persistência em fonte externa/serviço)
-9. Pode **exportar Excel** com dados limpos (sem HTML, com divergências calculadas)
+8. Salva a contagem (persistência relacional com transação que atualiza o estoque e insere no histórico)
+9. Pode **exportar Excel** com dados limpos e desvios calculados
 
-### Funcionalidades confirmadas pelo usuário
-- [x] Modo escuro / claro (toggle)
-- [x] Histórico de contagens (quem contou, quando, valor anterior vs novo)
+### Funcionalidades integradas
+- [x] Modo escuro / claro (toggle) com classes baseadas em tema
+- [x] Histórico de contagens persistente no banco Neon
 - [x] Campo de observação por item
 - [x] Modal de confirmação antes de salvar
-- [x] Toasts de notificação (sem `alert()`)
-- [x] Busca multi-coluna com debounce (descrição + origem)
+- [x] Toasts e alertas visuais de notificação
+- [x] Busca multi-coluna com debounce na tabela
 - [x] Ordenação de colunas clicável
-- [x] Badges coloridos por saldo (zero/baixo/ok)
-- [x] Barra de progresso da contagem
-- [x] Export Excel limpo (sem elementos HTML)
+- [x] Badges dinâmicos de status baseados no saldo
+- [x] Barra de progresso da contagem por almoxarifado
+- [x] Exportação de planilha Excel limpa
 
 ---
 
 ## 🗃️ Estrutura dos Dados
 
-### Material (objeto)
-```js
-{
-  id: 'RJO-001',               // identificador único
-  origem: 'RJO',               // código do almoxarifado
-  descricao: 'CABO DE FORÇA',  // descrição do material
-  unidade: 'M',                // unidade de medida
-  saldoAtual: 350,             // saldo no sistema (número ≥ 0)
-  ultimaAtualizacao: '2025-04-10' // ISO string ou null
-}
-```
-
-### Contagem (objeto em memória durante a sessão)
-```js
-{
-  id: 'RJO-001',   // referência ao material
-  novaQtd: 340,    // quantidade contada fisicamente
-  observacao: 'Faltando 10 unidades no setor B'
+### Material
+```typescript
+interface Material {
+  id: string;               // ID único no banco
+  origem: string;           // Cidade do almoxarifado
+  codmat: string;           // Código do material
+  descricao: string;        // Descrição detalhada
+  unidade: string;          // Unidade (M, UN, etc.)
+  saldoAtual: number;       // Saldo de estoque físico
+  precoUnitario: number;    // Preço do material
+  ultimaAtualizacao: string;// ISO Timestamp
 }
 ```
 
 ### Registro de Histórico
-```js
-{
-  id: 'RJO-001',
-  descricao: 'CABO DE FORÇA',
-  valorAnterior: 350,
-  valorNovo: 340,
-  observacao: '...',
-  timestamp: '2025-05-20T19:30:00.000Z'
+```typescript
+interface HistoricoRegistro {
+  id: number;
+  codmat: string;
+  descricao: string;
+  valorAnterior: number;
+  valorNovo: number;
+  desvio: number;
+  observacao: string | null;
+  timestamp: string;
 }
 ```
-
----
-
-## 🔧 Módulos e Responsabilidades
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `dadosFonte.js` | Fonte de dados externa. Exporta `getEstados`, `getAlmoxarifados`, `getMateriais` |
-| `filtros.js` | `filtrarMateriais` (multi-coluna), `ordenarPor` (imutável, null-last), `debounce` |
-| `validacao.js` | `validarQuantidade` (c/ opções), `validarContagens` (batch), `validarObservacao` |
-| `historico.js` | State em memória. `adicionarRegistro`, `getHistorico`, `limparHistorico`, `getResumoContagem` |
-| `exportacao.js` | `prepararDadosExport` (dados limpos), `gerarNomeArquivo` |
-| `auxiliaresUI.js` | `formatarData`, `getBadgeClass`, `calcularProgresso`, `sanitizarTexto`, `truncarTexto` |
-| `aplicacao.js` | Orquestrador: inicializa app, gerencia estado da sessão, coordena módulos |
-
----
-
-## 🎨 Design System (a implementar em `estilos.css`)
-
-- **Fonte**: Inter (Google Fonts)
-- **Ícones**: Font Awesome 6 (CDN)
-- **Paleta principal**: azul escuro (`#0f172a`) / azul elétrico (`#3b82f6`) / fundo (`#f8fafc`)
-- **Modo escuro**: via `data-tema="escuro"` no `<html>`
-- **Badges**: `badge-zero` (vermelho), `badge-low` (âmbar), `badge-ok` (verde)
-- **Toasts**: posição top-right, auto-dismiss 4s, tipos: sucesso / erro / aviso / info
-
----
-
-## 🔗 Dependências
-
-- **Vitest** `^4.1.7` — framework de testes (dev)
-- **XLSX.js** `0.18.5` — exportação Excel (CDN no HTML)
-- **Font Awesome 6** — ícones (CDN)
-- **Inter** — tipografia (Google Fonts CDN)
 
 ---
 
 ## ⚙️ Scripts npm
 
 ```bash
-npm test          # roda todos os testes uma vez
-npm run test:watch # modo watch (re-roda ao salvar)
+npm run dev       # inicia o servidor de desenvolvimento do Next.js
+npm run build     # compila o app para produção
+npm run start     # executa o app Next.js compilado
+npm test          # roda todos os testes com Vitest
 ```
 
 ---
 
 ## 📌 Contexto de Sessão Atual
 
-- **Fase TDD**: GREEN ✅ — 112/112 testes passando
-- **Próximo passo**: implementar `aplicacao.js`, `estilos.css` e `index.html`
-- **Backend**: integração pendente; dados devem vir de fonte externa (ex: API/SQLite)
+- **Fase**: Integração Concluída ✅
+- **Estado**: O projeto foi unificado para conter exclusivamente a aplicação moderna em Next.js na raiz, evitando conflitos de pastas e arquivos legados.

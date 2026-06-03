@@ -1,0 +1,569 @@
+'use client';
+
+import { useCallback, useState } from 'react';
+import {
+  calcularAcuracidade,
+  calcularFinanceiroDivergencias,
+  classificarCurvaABC,
+  formatarMoeda,
+  getBadgeClass,
+} from '@/lib/auxiliaresUI';
+import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
+
+interface TabMonitoramentoProps {
+  materiais: Material[];
+  contagens: ContagensMap;
+}
+
+export default function TabMonitoramento({ materiais, contagens }: TabMonitoramentoProps) {
+  const [divergenciasAbertas, setDivergenciasAbertas] = useState(false);
+  const totalItens = materiais.length;
+  const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.saldoAtual * (m.precoUnitario || 0), 0);
+
+  const acuracidadeStats = calcularAcuracidade(materiais, contagens);
+  const { divergentes: totalDivergentes, taxaAcuracidade, contados: totalContados } = acuracidadeStats;
+
+  const financeiro = calcularFinanceiroDivergencias(materiais, contagens);
+  const { resultadoLiquido } = financeiro;
+
+  const valorTotalFisico = materiais.reduce((acc, m) => {
+    const f = contagens[m.id]?.novaQtd;
+    return acc + (f !== undefined ? f * (m.precoUnitario || 0) : 0);
+  }, 0);
+  const maxValorFinanceiro = Math.max(valorTotalEstoque, valorTotalFisico, 1);
+  const pctSistemico = Math.round((valorTotalEstoque / maxValorFinanceiro) * 100);
+  const pctFisico = Math.round((valorTotalFisico / maxValorFinanceiro) * 100);
+  const pctFinal = Math.min(100, Math.round((Math.abs(resultadoLiquido) / maxValorFinanceiro) * 100));
+
+  const abc = classificarCurvaABC(materiais, contagens);
+  const valorA = abc.classes.A.reduce((s, i) => s + i.valorEstoque, 0);
+  const valorB = abc.classes.B.reduce((s, i) => s + i.valorEstoque, 0);
+  const valorC = abc.classes.C.reduce((s, i) => s + i.valorEstoque, 0);
+
+  const totalDisponivel = materiais.filter((m) => m.saldoAtual > 0).length;
+  const totalZerado = materiais.filter((m) => m.saldoAtual === 0).length;
+
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const dashoffset = circumference - (taxaAcuracidade / 100) * circumference;
+
+  const materiaisAgrupadosPorNome = Array.from(
+    materiais.reduce((map, m) => {
+      const key = m.descricao;
+      if (!map.has(key)) {
+        map.set(key, { ...m, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
+      }
+      const agrupado = map.get(key)!;
+      agrupado.saldoAtual += m.saldoAtual;
+      agrupado.valorEstoque += m.saldoAtual * (m.precoUnitario || 0);
+      agrupado.idsVinculados.push(m.id);
+      return map;
+    }, new Map<string, any>())
+  ).map(([, val]) => val);
+
+  const materiaisAnalitico = materiaisAgrupadosPorNome
+    .sort((a, b) => b.valorEstoque - a.valorEstoque);
+
+  const divergenciasAtivas = materiais.flatMap((m) => {
+    if (!(m.id in contagens)) return [];
+    const novaQtd = contagens[m.id].novaQtd;
+    if (novaQtd === m.saldoAtual) return [];
+    const desvio = novaQtd - m.saldoAtual;
+    return [{ descricao: m.descricao, origem: m.origem, saldoAtual: m.saldoAtual, novaQtd, desvio, impacto: desvio * (m.precoUnitario || 0) }];
+  });
+
+  const maxValor = Math.max(valorA, valorB, valorC, 1);
+  const pctBarA = Math.round((valorA / maxValor) * 100);
+  const pctBarB = Math.round((valorB / maxValor) * 100);
+  const pctBarC = Math.round((valorC / maxValor) * 100);
+  const pctDisponivel = totalItens > 0 ? Math.round((totalDisponivel / totalItens) * 100) : 0;
+  const pctZerado = totalItens > 0 ? Math.round((totalZerado / totalItens) * 100) : 0;
+
+  const getImpactoColor = useCallback((v: number) => {
+    if (v < 0) return 'var(--danger)';
+    if (v > 0) return 'var(--success)';
+    return 'var(--text-main)';
+  }, []);
+
+  const exportarAnalitico = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert('Biblioteca XLSX não carregada.');
+      return;
+    }
+
+    const dados = materiaisAnalitico.map((item, i) => {
+      const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+        const val = contagens[id]?.novaQtd;
+        if (val !== undefined) return (acc || 0) + val;
+        return acc;
+      }, undefined);
+      
+      const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
+      const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+
+      return {
+        '#': i + 1,
+        'Classe': item.classeABC ? `Classe ${item.classeABC}` : '—',
+        'Descrição': item.descricao,
+        'Saldo Sistêmico': item.saldoAtual,
+        'Saldo Físico': fisico !== undefined ? fisico : '—',
+        'Preço Unitário': item.precoUnitario,
+        'Total Sistêmico (R$)': item.valorEstoque,
+        'Total Físico (R$)': totalFisico !== undefined ? totalFisico : '—',
+        'Diferença Final (R$)': totalFinal !== undefined ? totalFinal : '—',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tabela Analítica');
+    XLSX.writeFile(wb, `SGI_Tabela_Analitica_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+  }, [materiaisAnalitico, contagens]);
+
+  return (
+    <div>
+      {/* KPIs */}
+      <div className="stats-container animate-fade-in">
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Patrimônio Total</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{formatarMoeda(valorTotalEstoque)}</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Valoração total sob gestão</span>
+          </div>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+            <i className="fas fa-boxes"></i>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Volume de Itens</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{totalItens}</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Materiais selecionados</span>
+          </div>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+            <i className="fas fa-barcode"></i>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Divergências</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: totalDivergentes > 0 ? 'var(--warning)' : 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{totalDivergentes}</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Contagens divergentes</span>
+          </div>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: totalDivergentes > 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: totalDivergentes > 0 ? '#d97706' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Impacto Líquido</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: getImpactoColor(resultadoLiquido), fontFamily: 'Quicksand, sans-serif' }}>{formatarMoeda(resultadoLiquido)}</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Saldo das divergências</span>
+          </div>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: resultadoLiquido < 0 ? 'rgba(239, 68, 68, 0.08)' : resultadoLiquido > 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: resultadoLiquido < 0 ? 'var(--danger)' : resultadoLiquido > 0 ? 'var(--success)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+            <i className="fas fa-coins"></i>
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard Grid */}
+      <div className="dashboard-grid animate-fade-in">
+        {/* Gauge Acuracidade */}
+        <div className="chart-card">
+          <div className="chart-card-title"><i className="fas fa-bullseye"></i> Acuracidade das Auditorias</div>
+          <div className="chart-container">
+            <svg className="svg-chart" width="160" height="160" viewBox="0 0 100 100">
+              <circle className="svg-gauge-bg" cx="50" cy="50" r="40" strokeWidth="8" />
+              <circle
+                className="svg-gauge-fill" cx="50" cy="50" r="40" strokeWidth="8"
+                strokeDasharray={circumference} strokeDashoffset={dashoffset}
+                transform="rotate(-90 50 50)"
+              />
+              <text className="svg-gauge-text" x="50" y="52" fontSize="14" textAnchor="middle">{taxaAcuracidade}%</text>
+              <text className="svg-gauge-label" x="50" y="65" textAnchor="middle">ACURÁCIA</text>
+            </svg>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Com base em <strong>{totalContados}</strong> itens auditados.
+          </div>
+        </div>
+
+        {/* Valores Totais */}
+        <div className="chart-card">
+          <div className="chart-card-title"><i className="fas fa-wallet"></i> Balanço Financeiro</div>
+          <div className="chart-container" style={{ flexDirection: 'column', justifyContent: 'space-around', gap: '0.75rem', padding: '1rem 0' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Total Sistêmico</span><span>{formatarMoeda(valorTotalEstoque)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctSistemico}%`, height: '100%', borderRadius: '4px', background: 'var(--text-main)' }} />
+              </div>
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Total Físico</span><span>{formatarMoeda(valorTotalFisico)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctFisico}%`, height: '100%', borderRadius: '4px', background: 'var(--success)' }} />
+              </div>
+            </div>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
+                <span>Resultado Final (Diferença)</span><span style={{ color: getImpactoColor(resultadoLiquido) }}>{formatarMoeda(resultadoLiquido)}</span>
+              </div>
+              <div className="progress-track" style={{ height: '10px' }}>
+                <div style={{ width: `${pctFinal}%`, height: '100%', borderRadius: '4px', background: getImpactoColor(resultadoLiquido) }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráfico de Acuracidade por UF */}
+        <div className="chart-card">
+          <div className="chart-card-title"><i className="fas fa-chart-column"></i> Acuracidade por UF</div>
+          <div className="chart-container" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '100%', padding: '1rem', gap: '0.25rem', overflow: 'hidden' }}>
+            {Object.entries(
+              materiais.reduce((acc, m) => {
+                const cidadeUpper = (m.origem || '').toUpperCase();
+                let uf = 'Outros';
+                if (cidadeUpper === 'ESPIRITO SANTO' || cidadeUpper === 'ES') uf = 'Espírito Santo';
+                else if (cidadeUpper === 'SÃO PAULO' || cidadeUpper === 'SAO PAULO' || cidadeUpper === 'SP') uf = 'São Paulo';
+                else if (cidadeUpper === 'CURITIBA' || cidadeUpper === 'PARANA' || cidadeUpper === 'PARANÁ' || cidadeUpper === 'PR') uf = 'Paraná';
+                else if (cidadeUpper === 'MINAS GERAIS' || cidadeUpper === 'MG') uf = 'Minas Gerais';
+                else if ((cidadeUpper.includes('RIO') && cidadeUpper.includes('JANEIRO')) || cidadeUpper === 'RJ') uf = 'Rio de Janeiro';
+
+                if (!acc[uf]) acc[uf] = [];
+                acc[uf].push(m);
+                return acc;
+              }, {} as Record<string, Material[]>)
+            )
+            .filter(([uf]) => uf !== 'Outros') // Garante que só os 5 estados oficiais apareçam
+            .map(([uf, mats]) => {
+              const stats = calcularAcuracidade(mats, contagens);
+              return { uf, taxa: stats.taxaAcuracidade, contados: stats.contados };
+            }).sort((a, b) => b.taxa - a.taxa || a.uf.localeCompare(b.uf)).map((item) => (
+              <div key={item.uf} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '0.25rem', height: '100%', overflow: 'hidden' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', marginTop: 'auto' }}>
+                  {item.taxa}%
+                </div>
+                <div style={{ width: '20px', height: '120px', display: 'flex', alignItems: 'flex-end', background: 'var(--glass-bg)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: `${item.taxa}%`, 
+                    background: item.taxa === 100 ? 'var(--success)' : item.taxa >= 80 ? 'var(--warning)' : 'var(--danger)',
+                    transition: 'height 0.8s ease',
+                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+                  }} />
+                </div>
+                <div style={{ fontSize: '0.55rem', fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', wordBreak: 'break-word', lineHeight: '1.1' }}>
+                  {item.uf}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Curva ABC Section */}
+      <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
+        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.15rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <i className="fas fa-chart-pie" style={{ color: 'var(--text-main)' }}></i> Classificação Curva ABC (Base de Dados De-Para)
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          {(
+            [
+              { 
+                classe: 'A', 
+                label: 'Classe A (Alto Impacto)', 
+                total: valorA, 
+                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorA / abc.valorTotalEstoque) * 100) : 0,
+                colorGradient: 'linear-gradient(180deg, #3b82f6, #1d4ed8)', // Azul Elétrico
+                badgeBg: 'rgba(59, 130, 246, 0.1)',
+                badgeText: '#2563eb'
+              },
+              { 
+                classe: 'B', 
+                label: 'Classe B (Médio Impacto)', 
+                total: valorB, 
+                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorB / abc.valorTotalEstoque) * 100) : 0,
+                colorGradient: 'linear-gradient(180deg, #10b981, #047857)', // Verde Esmeralda
+                badgeBg: 'rgba(16, 185, 129, 0.1)',
+                badgeText: '#059669'
+              },
+              { 
+                classe: 'C', 
+                label: 'Classe C (Baixo Impacto)', 
+                total: valorC, 
+                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorC / abc.valorTotalEstoque) * 100) : 0,
+                colorGradient: 'linear-gradient(180deg, #f59e0b, #b45309)', // Âmbar
+                badgeBg: 'rgba(245, 158, 11, 0.1)',
+                badgeText: '#d97706'
+              },
+            ] as const
+          ).map(({ classe, label, total, pctVal, colorGradient, badgeBg, badgeText }) => {
+            const count = abc.classes[classe].length;
+            const pctItens = totalItens > 0 ? Math.round((count / totalItens) * 100) : 0;
+            const accClasse = abc.acuracidadePorClasse[classe];
+            
+            // Definição visual do status de acuracidade
+            let accStatusLabel = 'Crítica';
+            let accStatusColor = 'var(--danger)';
+            let accStatusBg = 'rgba(239, 68, 68, 0.08)';
+            
+            if (accClasse === 100) {
+              accStatusLabel = 'Excelente';
+              accStatusColor = 'var(--success)';
+              accStatusBg = 'rgba(22, 163, 74, 0.08)';
+            } else if (accClasse >= 80) {
+              accStatusLabel = 'Estável';
+              accStatusColor = 'var(--warning)';
+              accStatusBg = 'rgba(245, 158, 11, 0.08)';
+            }
+
+            return (
+              <div key={classe} className="stat-card" style={{ 
+                background: 'var(--glass-bg-strong)', 
+                border: '1px solid var(--glass-border)', 
+                borderRadius: '12px', 
+                padding: '1.5rem 1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                position: 'relative',
+                overflow: 'hidden',
+                textAlign: 'left',
+                boxShadow: 'var(--shadow-sm)'
+              }}>
+                {/* Indicador de cor na borda esquerda */}
+                <div style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  bottom: 0, 
+                  width: '5px', 
+                  background: colorGradient 
+                }} />
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 800, fontFamily: "'Quicksand', sans-serif", letterSpacing: '-0.02em' }}>
+                    Classe {classe}
+                  </span>
+                  <span className="badge" style={{ 
+                    background: badgeBg,
+                    color: badgeText,
+                    fontSize: '0.68rem',
+                    padding: '0.25rem 0.6rem'
+                  }}>
+                    {label}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '8px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Itens Cadastrados:</span>
+                    <span style={{ fontWeight: 700 }}>{count} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>({pctItens}%)</span></span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Valor em Estoque:</span>
+                    <span style={{ fontWeight: 700 }}>{formatarMoeda(total)} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>({pctVal}%)</span></span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Acuracidade Física:</span>
+                    <span className="badge" style={{ 
+                      fontWeight: 700, 
+                      color: accStatusColor,
+                      background: accStatusBg,
+                      fontSize: '0.72rem',
+                      padding: '0.2rem 0.5rem'
+                    }}>
+                      {accStatusLabel} ({accClasse}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Barra de Progresso do Valor */}
+                <div style={{ paddingLeft: '8px', marginTop: '0.25rem' }}>
+                  <div className="progress-track" style={{ height: '6px' }}>
+                    <div style={{ 
+                      width: `${pctVal}%`, 
+                      height: '100%', 
+                      borderRadius: '3px', 
+                      background: colorGradient
+                    }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tabela Analítica */}
+      <div className="card animate-fade-in" style={{ marginTop: '2rem', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+        <h3 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <span>
+            <i className="fas fa-list"></i> Tabela Analítica de Materiais
+          </span>
+          <button className="btn btn-secondary btn-excel" onClick={exportarAnalitico} style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+            <i className="fas fa-file-excel"></i> Exportar Analítico
+          </button>
+        </h3>
+        <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+          <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+              <tr>
+                <th>#</th><th>Classe</th><th style={{ whiteSpace: 'normal', minWidth: '150px' }}>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materiaisAnalitico.map((item, i) => {
+                const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+                  const val = contagens[id]?.novaQtd;
+                  if (val !== undefined) return (acc || 0) + val;
+                  return acc;
+                }, undefined);
+                
+                const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
+                const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+
+                return (
+                  <tr key={item.descricao}>
+                    <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
+                    <td>
+                      {item.classeABC ? (
+                        <span className="badge" style={{ 
+                          background: item.classeABC === 'A' ? 'var(--text-main)' : item.classeABC === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
+                          color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff'
+                        }}>
+                          Classe {item.classeABC}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ whiteSpace: 'normal', minWidth: '150px' }}><strong>{item.descricao}</strong></td>
+                    <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
+                    <td>
+                      {fisico !== undefined ? (
+                        <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{fisico}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td>{formatarMoeda(item.precoUnitario)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
+                    <td style={{ fontWeight: 600 }}>{totalFisico !== undefined ? formatarMoeda(totalFisico) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}</td>
+                    <td style={{ fontWeight: 600, color: totalFinal !== undefined ? getImpactoColor(totalFinal) : 'inherit' }}>
+                      {totalFinal !== undefined ? formatarMoeda(totalFinal) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' }}>
+              <tr style={{ background: 'var(--bg-card)', borderTop: '2px solid var(--border-color)' }}>
+                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => acc + item.valorEstoque, 0))}
+                </td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
+                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                      const val = contagens[id]?.novaQtd;
+                      if (val !== undefined) return (sum || 0) + val;
+                      return sum;
+                    }, undefined);
+                    return acc + (f !== undefined ? f * (item.precoUnitario || 0) : 0);
+                  }, 0))}
+                </td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
+                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                      const val = contagens[id]?.novaQtd;
+                      if (val !== undefined) return (sum || 0) + val;
+                      return sum;
+                    }, undefined);
+                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : 0;
+                    return acc + (tFisico - item.valorEstoque);
+                  }, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Divergências Ativas */}
+      {divergenciasAtivas.length > 0 && (
+        <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
+          <h3 
+            onClick={() => setDivergenciasAbertas(!divergenciasAbertas)}
+            style={{ 
+              fontFamily: "'Quicksand', sans-serif", 
+              fontWeight: 800, 
+              fontSize: '1.15rem', 
+              marginBottom: divergenciasAbertas ? '1.25rem' : '0px', 
+              color: 'var(--warning)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-exclamation-triangle"></i> Divergências Ativas ({divergenciasAtivas.length})
+            </span>
+            <i className={`fas fa-chevron-${divergenciasAbertas ? 'up' : 'down'}`} style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}></i>
+          </h3>
+          {divergenciasAbertas && (
+            <div className="table-responsive">
+              <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Origem</th>
+                    <th>Saldo Sistema</th>
+                    <th>Contagem Física</th>
+                    <th>Desvio</th>
+                    <th>Impacto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {divergenciasAtivas.map((d, i) => (
+                    <tr key={i}>
+                      <td><strong>{d.descricao}</strong></td>
+                      <td><span className="badge-unidade" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{d.origem}</span></td>
+                      <td><span className="badge badge-ok" style={{ background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)' }}>{d.saldoAtual}</span></td>
+                      <td><span className="badge badge-ok" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>{d.novaQtd}</span></td>
+                      <td>
+                        {d.desvio > 0 ? (
+                          <span className="badge-diff sobra" style={{ backgroundColor: 'rgba(22, 163, 74, 0.08)', color: 'var(--success)', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                            <i className="fas fa-arrow-up"></i> +{d.desvio}
+                          </span>
+                        ) : (
+                          <span className="badge-diff falta" style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', color: 'var(--danger)', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                            <i className="fas fa-arrow-down"></i> {d.desvio}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ color: getImpactoColor(d.impacto), fontWeight: 700 }}>
+                        {d.impacto > 0 ? `+${formatarMoeda(d.impacto)}` : formatarMoeda(d.impacto)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
