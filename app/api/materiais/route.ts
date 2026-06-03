@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 
-// Contratos autorizados no sistema
-const CONTRATOS_AUTORIZADOS = new Set([21, 41, 61, 62, 31, 58, 59, 71, 72]);
+
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -17,18 +16,12 @@ export async function GET(request: NextRequest) {
       // Sem filtro específico: retorna todos os materiais dos contratos autorizados
       query = `
         SELECT * FROM vw_estoque_contagem
-        WHERE contrato = ANY($1::int[])
         ORDER BY descricao
       `;
-      params = [Array.from(CONTRATOS_AUTORIZADOS)];
+      params = [];
     } else {
       const queryCidade = (cidade || '').trim();
       const queryContrato = parseInt(contrato || '', 10);
-
-      // Validar se o contrato está autorizado
-      if (!CONTRATOS_AUTORIZADOS.has(queryContrato)) {
-        return NextResponse.json([]);
-      }
 
       query = `
         SELECT * FROM vw_estoque_contagem
