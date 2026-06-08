@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 
 // Contratos autorizados no sistema
-const CONTRATOS_AUTORIZADOS = new Set([21, 41, 61, 62, 31, 58, 59, 71, 72]);
+const CONTRATOS_AUTORIZADOS = new Set([1, 21, 41, 61, 62, 31, 58, 59, 71, 72]);
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

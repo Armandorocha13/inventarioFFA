@@ -3,6 +3,7 @@ import { pool } from '@/lib/db';
 
 // Mapeamento de contrato → UF
 const CONTRATO_UF_MAP: Record<number, { sigla: string; nome: string }> = {
+  1: { sigla: 'SP', nome: 'São Paulo' },
   21: { sigla: 'RJ', nome: 'Rio de Janeiro' },
   41: { sigla: 'RJ', nome: 'Rio de Janeiro' },
   61: { sigla: 'ES', nome: 'Espírito Santo' },
@@ -54,7 +55,7 @@ export async function GET() {
 
       // Label amigável indicando o tipo de contrato
       const tipoContrato = contrato === 31 ? 'FERRAMENTARIA E SSO' :
-        [21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
+        [1, 21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
 
       almoxarifados[uf.sigla].push({
         codigo,

@@ -62,6 +62,11 @@ async function runMigration() {
         ON CAST(se.grupo_codigo AS INTEGER) = dp.contrato
       LEFT JOIN progresso_contagem pc 
         ON pc.codmat = se.codmat AND pc.cidade = dp.cidade
+      WHERE se.codmat NOT ILIKE 'S%' 
+        AND se.descricao NOT ILIKE 'SUC-%' 
+        AND COALESCE(se.codcpl, '') NOT ILIKE '%SUCATA%'
+        -- Exclude RJO items of Contract 1 (Since Contract 1 is of SP)
+        AND NOT (CAST(se.grupo_codigo AS INTEGER) = 1 AND se.grupo ILIKE '%RJO%')
       GROUP BY dp.cidade, CAST(se.grupo_codigo AS INTEGER), se.codmat, se.descricao;
     `);
 

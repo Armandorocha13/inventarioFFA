@@ -142,16 +142,11 @@ export function calcularAcuracidade(
 
   let acertos = 0;
   let divergentes = 0;
-  let totalCorrect = 0;
-  let totalVerified = 0;
 
   contagensRealizadas.forEach((m) => {
     const contagem = contagens[m.id];
     const physical = contagem.novaQtd;
     const system = m.saldoAtual;
-
-    totalCorrect += Math.min(physical, system);
-    totalVerified += Math.max(physical, system);
 
     if (physical === system) {
       acertos++;
@@ -160,7 +155,7 @@ export function calcularAcuracidade(
     }
   });
 
-  const taxaAcuracidade = totalVerified === 0 ? 100 : Math.round((totalCorrect / totalVerified) * 100);
+  const taxaAcuracidade = contados === 0 ? 100 : Math.round((acertos / contados) * 100);
   return { total, contados, acertos, divergentes, taxaAcuracidade };
 }
 
