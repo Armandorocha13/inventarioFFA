@@ -6,6 +6,7 @@ import type { Material, ContagensMap } from './auxiliaresUI';
 export interface FiltroState {
   termo: string;
   tipo: string;
+  grupo: string;
 }
 
 export function filtrarMateriais(
@@ -50,6 +51,10 @@ export function filtrarMateriais(
 
     if (tipo && tipo !== 'todos') {
       resultado = resultado.filter((m) => (m.descricao || '') === tipo);
+    }
+
+    if (filtro.grupo && filtro.grupo !== 'todas') {
+      resultado = resultado.filter((m) => m.grupo === filtro.grupo);
     }
   }
 

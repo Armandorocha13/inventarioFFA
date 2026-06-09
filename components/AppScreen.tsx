@@ -37,7 +37,7 @@ export default function AppScreen({
   onVoltarLanding,
   toast,
 }: AppScreenProps) {
-  const { state, setAba, carregarMateriais, registrarContagem, restaurarContagens, setFiltroTermo, setFiltroTipo, ordenarColuna, gravarContagens } = inventario;
+  const { state, setAba, carregarMateriais, registrarContagem, restaurarContagens, setFiltroTermo, setFiltroTipo, setFiltroGrupo, ordenarColuna, gravarContagens } = inventario;
   const [codigoAlmox, setCodigoAlmox] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -188,6 +188,7 @@ export default function AppScreen({
           origem: mat.origem,
           codmat: mat.codmat,
           descricao: mat.descricao,
+          grupo: mat.grupo,
           valorAnterior: mat.saldoAtual,
           valorNovo: c.novaQtd,
           observacao: c.observacao,
@@ -363,6 +364,21 @@ export default function AppScreen({
                     value={state.filtros.termo}
                     onChange={(e) => setFiltroTermo(e.target.value)}
                   />
+                </div>
+                <div className="form-group" id="grupoFiltroCidade">
+                  <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
+                  <select
+                    id="cidadeFilter"
+                    className="form-control"
+                    value={state.filtros.grupo}
+                    onChange={(e) => setFiltroGrupo(e.target.value)}
+                  >
+                    <option value="todas">Todas as cidades</option>
+                    {Array.from(new Set(state.materiais.map((m) => m.grupo).filter(Boolean))).sort().map((g) => {
+                      const cityName = g ? g.substring(g.indexOf(' ') + 1) : '';
+                      return <option key={g!} value={g!}>{cityName || g}</option>;
+                    })}
+                  </select>
                 </div>
                 <div className="form-group" id="grupoTipo">
                   <label htmlFor="tipoFilter"><i className="fas fa-tags"></i> Tipo de Material</label>

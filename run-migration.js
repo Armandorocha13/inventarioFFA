@@ -27,8 +27,8 @@ async function runMigration() {
     await client.query('BEGIN');
     
     // 1. Drop old table
-    console.log("Dropping historico_contagem...");
-    await client.query('DROP TABLE IF EXISTS historico_contagem CASCADE;');
+    console.log("Dropping progresso_contagem...");
+    await client.query('DROP TABLE IF EXISTS progresso_contagem CASCADE;');
 
     // 2. Create new table
     console.log("Creating progresso_contagem...");
@@ -36,10 +36,11 @@ async function runMigration() {
       CREATE TABLE progresso_contagem (
         id SERIAL PRIMARY KEY,
         cidade VARCHAR(255),
+        grupo VARCHAR(255),
         codmat VARCHAR(255),
         quantidade_contada NUMERIC,
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (cidade, codmat)
+        UNIQUE (cidade, grupo, codmat)
       );
     `);
 
@@ -51,6 +52,7 @@ async function runMigration() {
         MAX(se.id) as id,
         dp.cidade AS origem,
         CAST(se.grupo_codigo AS INTEGER) as contrato,
+        se.grupo,
         se.codmat,
         se.descricao,
         MAX(se.unid) AS unidade,
@@ -61,13 +63,13 @@ async function runMigration() {
       JOIN (SELECT contrato, MAX(TRIM(cidade)) as cidade FROM de_para_projeto GROUP BY contrato) dp 
         ON CAST(se.grupo_codigo AS INTEGER) = dp.contrato
       LEFT JOIN progresso_contagem pc 
-        ON pc.codmat = se.codmat AND pc.cidade = dp.cidade
+        ON pc.codmat = se.codmat AND pc.cidade = dp.cidade AND pc.grupo = se.grupo
       WHERE se.codmat NOT ILIKE 'S%' 
         AND se.descricao NOT ILIKE 'SUC-%' 
         AND COALESCE(se.codcpl, '') NOT ILIKE '%SUCATA%'
         -- Exclude RJO items of Contract 1 (Since Contract 1 is of SP)
         AND NOT (CAST(se.grupo_codigo AS INTEGER) = 1 AND se.grupo ILIKE '%RJO%')
-      GROUP BY dp.cidade, CAST(se.grupo_codigo AS INTEGER), se.codmat, se.descricao;
+      GROUP BY dp.cidade, CAST(se.grupo_codigo AS INTEGER), se.grupo, se.codmat, se.descricao;
     `);
 
     await client.query('COMMIT');

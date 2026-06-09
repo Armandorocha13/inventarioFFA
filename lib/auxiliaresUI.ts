@@ -8,6 +8,7 @@
 export interface Material {
   id: number;
   origem: string;
+  grupo?: string;
   codmat: string;
   descricao: string;
   unidade: string;

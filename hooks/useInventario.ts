@@ -28,6 +28,7 @@ type Action =
   | { type: 'RESTAURAR_CONTAGENS'; payload: ContagensMap }
   | { type: 'SET_FILTRO_TERMO'; payload: string }
   | { type: 'SET_FILTRO_TIPO'; payload: string }
+  | { type: 'SET_FILTRO_GRUPO'; payload: string }
   | { type: 'ORDENAR_COLUNA'; payload: keyof Material }
   | { type: 'RESETAR' };
 
@@ -48,7 +49,7 @@ const initialState: InventarioState = {
   contagens: {},
   colunaOrdenacao: null,
   direcaoOrdenacao: 'asc',
-  filtros: { termo: '', tipo: 'todos' },
+  filtros: { termo: '', tipo: 'todos', grupo: 'todas' },
   carregando: false,
 };
 
@@ -65,7 +66,7 @@ function inventarioReducer(state: InventarioState, action: Action): InventarioSt
         ...state,
         materiais: action.payload.materiais,
         contagens: action.payload.contagensIniciais,
-        filtros: { termo: '', tipo: 'todos' },
+        filtros: { termo: '', tipo: 'todos', grupo: 'todas' },
         colunaOrdenacao: null,
         direcaoOrdenacao: 'asc',
         // Mantem a aba atual definida pelo login
@@ -94,6 +95,11 @@ function inventarioReducer(state: InventarioState, action: Action): InventarioSt
 
     case 'SET_FILTRO_TIPO': {
       const newState = { ...state, filtros: { ...state.filtros, tipo: action.payload } };
+      return { ...newState, materiaisVisiveis: aplicarFiltrosEOrdenacao(newState) };
+    }
+
+    case 'SET_FILTRO_GRUPO': {
+      const newState = { ...state, filtros: { ...state.filtros, grupo: action.payload } };
       return { ...newState, materiaisVisiveis: aplicarFiltrosEOrdenacao(newState) };
     }
 
@@ -170,11 +176,12 @@ export function useInventario() {
 
   const setFiltroTermo = useCallback((termo: string) => dispatch({ type: 'SET_FILTRO_TERMO', payload: termo }), []);
   const setFiltroTipo = useCallback((tipo: string) => dispatch({ type: 'SET_FILTRO_TIPO', payload: tipo }), []);
+  const setFiltroGrupo = useCallback((grupo: string) => dispatch({ type: 'SET_FILTRO_GRUPO', payload: grupo }), []);
   const ordenarColuna = useCallback((coluna: keyof Material) => dispatch({ type: 'ORDENAR_COLUNA', payload: coluna }), []);
   const resetar = useCallback(() => dispatch({ type: 'RESETAR' }), []);
 
   const gravarContagens = useCallback(
-    async (contagens: Array<{ id: number; codmat: string; descricao: string; valorAnterior: number | null; valorNovo: number; observacao?: string }>) => {
+    async (contagens: Array<{ id: number; codmat: string; grupo?: string; descricao: string; valorAnterior: number | null; valorNovo: number; observacao?: string }>) => {
       const res = await fetch('/api/contagem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,6 +201,7 @@ export function useInventario() {
     restaurarContagens,
     setFiltroTermo,
     setFiltroTipo,
+    setFiltroGrupo,
     ordenarColuna,
     resetar,
     gravarContagens,

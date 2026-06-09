@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
       materiais.push({
         id: row.id,
         origem: row.origem ? row.origem.trim() : '',
+        grupo: row.grupo ? row.grupo.trim() : '',
         codmat: row.codmat ? row.codmat.trim() : '',
         descricao: row.descricao ? row.descricao.trim() : '',
         unidade: row.unidade ? row.unidade.trim() : '',

@@ -4,6 +4,7 @@ import { pool } from '@/lib/db';
 interface ItemContagem {
   id: number;
   origem: string;
+  grupo?: string;
   codmat: string;
   descricao: string;
   valorAnterior: number | null;
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     await client.query('BEGIN');
 
     for (const item of contagens) {
-      const { id, origem, codmat, valorNovo } = item;
+      const { id, origem, grupo, codmat, valorNovo } = item;
 
       // 🚧 PILOT TEST LOCK: Somente Rio de Janeiro
       if ((origem || '').trim().toUpperCase() !== 'RIO DE JANEIRO') {
@@ -40,10 +41,10 @@ export async function POST(request: NextRequest) {
       }
 
       await client.query(
-        `INSERT INTO progresso_contagem (cidade, codmat, quantidade_contada)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (cidade, codmat) DO UPDATE SET quantidade_contada = EXCLUDED.quantidade_contada, atualizado_em = CURRENT_TIMESTAMP`,
-        [origem || 'ND', codmat, parseFloat(String(valorNovo))]
+        `INSERT INTO progresso_contagem (cidade, grupo, codmat, quantidade_contada)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (cidade, grupo, codmat) DO UPDATE SET quantidade_contada = EXCLUDED.quantidade_contada, atualizado_em = CURRENT_TIMESTAMP`,
+        [origem || 'ND', grupo || 'GERAL', codmat, parseFloat(String(valorNovo))]
       );
 
       await client.query(
