@@ -9,6 +9,30 @@ export interface FiltroState {
   grupo: string;
 }
 
+export const ALIAS_CIDADE: Record<string, string> = {
+  "BH": "BELO HORIZONTE",
+  "GOV VALA": "GOV VALADARES",
+  "GOV.VALADARES": "GOV VALADARES",
+  "JUIZ DE": "JUIZ DE FORA",
+  "VARGINHAS": "VARGINHA",
+  "IAT CAMPOS": "CAMPOS",
+  "CLARO IAT": "CAMPOS",
+  "CPS": "CAMPOS",
+  "TIM RJO": "RIO DE JANEIRO",
+  "RJO": "RIO DE JANEIRO",
+  "SSO RJ": "RIO DE JANEIRO",
+  "REG. RJ": "RIO DE JANEIRO",
+  "REG.RJ": "RIO DE JANEIRO"
+};
+
+export function padronizarNomeCidade(grupoOriginal: string): string {
+  if (!grupoOriginal) return '';
+  let nome = grupoOriginal.substring(grupoOriginal.indexOf(' ') + 1).trim().toUpperCase();
+  nome = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+  nome = nome.replace(/\.\s+/g, '.');
+  return ALIAS_CIDADE[nome] || nome;
+}
+
 export function filtrarMateriais(
   materiais: Material[],
   filtro: FiltroState | string,
@@ -54,7 +78,8 @@ export function filtrarMateriais(
     }
 
     if (filtro.grupo && filtro.grupo !== 'todas') {
-      resultado = resultado.filter((m) => m.grupo === filtro.grupo);
+      const targetCity = filtro.grupo;
+      resultado = resultado.filter((m) => padronizarNomeCidade(m.grupo || '') === targetCity);
     }
   }
 

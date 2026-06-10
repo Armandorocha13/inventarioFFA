@@ -8,6 +8,7 @@ import ModalConfirmacao from './ModalConfirmacao';
 import type { useInventario } from '@/hooks/useInventario';
 import type { AbaAtiva } from '@/hooks/useInventario';
 import type { Material } from '@/lib/auxiliaresUI';
+import { padronizarNomeCidade } from '@/lib/filtros';
 
 interface Almoxarifado {
   codigo: string;
@@ -221,7 +222,7 @@ export default function AppScreen({
   };
 
   // Dynamic frontend filtering for Estado, Projeto, and Classificacao
-  const materiaisFiltrados = state.materiaisVisiveis.filter((m) => {
+  const materiaisBase = state.materiaisVisiveis.filter((m) => {
     // 1. Filter by Estado
     if (filtroEstado !== 'todos') {
       let matUf = 'RJ';
@@ -233,13 +234,36 @@ export default function AppScreen({
       
       if (matUf !== filtroEstado) return false;
     }
+    return true;
+  });
 
+  // Cálculo Dinâmico da Curva ABC Relativo aos filtros ativos
+  const itensComValor = materiaisBase.map(m => ({
+    ...m,
+    valorEstoqueTemp: (m.saldoAtual || 0) * (m.precoUnitario || 0)
+  }));
+  itensComValor.sort((a, b) => b.valorEstoqueTemp - a.valorEstoqueTemp);
+  
+  const valorTotalEstoque = itensComValor.reduce((acc, m) => acc + m.valorEstoqueTemp, 0);
+  let somaAcumulada = 0;
+  
+  const mapClasseABC = new Map<number, string>();
+  itensComValor.forEach((m) => {
+    somaAcumulada += m.valorEstoqueTemp;
+    const percentual = valorTotalEstoque > 0 ? somaAcumulada / valorTotalEstoque : 0;
+    if (percentual <= 0.8) mapClasseABC.set(m.id, 'A');
+    else if (percentual <= 0.95) mapClasseABC.set(m.id, 'B');
+    else mapClasseABC.set(m.id, 'C');
+  });
+
+  const materiaisFiltrados = materiaisBase.map(m => ({
+    ...m,
+    classeABC: mapClasseABC.get(m.id) || 'C'
+  })).filter((m) => {
     // 2. Filter by Classificação
     if (filtroClasse !== 'todas') {
-      const cls = (m.classeABC || 'C').toUpperCase();
-      if (cls !== filtroClasse.toUpperCase()) return false;
+      return m.classeABC === filtroClasse.toUpperCase();
     }
-
     return true;
   });
 
@@ -354,17 +378,6 @@ export default function AppScreen({
             </div>
             {codigoAlmox && (
               <>
-                <div className="form-group" id="grupoBusca">
-                  <label htmlFor="searchInput"><i className="fas fa-search"></i> Buscar Material</label>
-                  <input
-                    type="text"
-                    id="searchInput"
-                    className="form-control"
-                    placeholder="Descrição, origem..."
-                    value={state.filtros.termo}
-                    onChange={(e) => setFiltroTermo(e.target.value)}
-                  />
-                </div>
                 <div className="form-group" id="grupoFiltroCidade">
                   <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
                   <select
@@ -374,10 +387,9 @@ export default function AppScreen({
                     onChange={(e) => setFiltroGrupo(e.target.value)}
                   >
                     <option value="todas">Todas as cidades</option>
-                    {Array.from(new Set(state.materiais.map((m) => m.grupo).filter(Boolean))).sort().map((g) => {
-                      const cityName = g ? g.substring(g.indexOf(' ') + 1) : '';
-                      return <option key={g!} value={g!}>{cityName || g}</option>;
-                    })}
+                    {Array.from(new Set(state.materiais.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
+                      <option key={cityName} value={cityName}>{cityName}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group" id="grupoTipo">
