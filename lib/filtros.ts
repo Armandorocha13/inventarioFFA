@@ -22,7 +22,13 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "RJO": "RIO DE JANEIRO",
   "SSO RJ": "RIO DE JANEIRO",
   "REG. RJ": "RIO DE JANEIRO",
-  "REG.RJ": "RIO DE JANEIRO"
+  "REG.RJ": "RIO DE JANEIRO",
+  // Nova Friburgo — variações possíveis vindas do banco
+  "FRIBURGO": "NOVA FRIBURGO",
+  "N FRIBURGO": "NOVA FRIBURGO",
+  "N. FRIBURGO": "NOVA FRIBURGO",
+  "NVA FRIBURGO": "NOVA FRIBURGO",
+  "N.FRIBURGO": "NOVA FRIBURGO"
 };
 
 export function padronizarNomeCidade(grupoOriginal: string): string {
