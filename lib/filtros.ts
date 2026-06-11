@@ -15,28 +15,52 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "GOV.VALADARES": "GOV VALADARES",
   "JUIZ DE": "JUIZ DE FORA",
   "VARGINHAS": "VARGINHA",
+  // CAMPOS — entradas específicas por nome do grupo
   "IAT CAMPOS": "CAMPOS",
-  "CLARO IAT": "CAMPOS",
+  "CLARO IAT CAMPOS": "CAMPOS",
   "CPS": "CAMPOS",
+  "FERRAMENTARIA CPS": "CAMPOS",
+  // Rio de Janeiro
   "TIM RJO": "RIO DE JANEIRO",
   "RJO": "RIO DE JANEIRO",
+  "FERRAMENTARIA RJO": "RIO DE JANEIRO",
   "SSO RJ": "RIO DE JANEIRO",
   "REG. RJ": "RIO DE JANEIRO",
   "REG.RJ": "RIO DE JANEIRO",
-  // Nova Friburgo — variações possíveis vindas do banco
+  // Nova Friburgo — "FERRAM. CLARO IAT" é o nome do grupo contrato 21 para Friburgo
+  "FERRAM.CLARO IAT": "NOVA FRIBURGO",
   "FRIBURGO": "NOVA FRIBURGO",
   "N FRIBURGO": "NOVA FRIBURGO",
   "N. FRIBURGO": "NOVA FRIBURGO",
   "NVA FRIBURGO": "NOVA FRIBURGO",
-  "N.FRIBURGO": "NOVA FRIBURGO"
+  "N.FRIBURGO": "NOVA FRIBURGO",
+  "SEG NOVA FRIBURGO": "NOVA FRIBURGO",
+  "REGULADOR FRIBURGO": "NOVA FRIBURGO",
 };
 
+/**
+ * Extrai e padroniza o nome da cidade a partir do campo `grupo` do material.
+ * O campo grupo tem formato: "CODIGO/NOME_PROJETO" ex: "21/FERRAM. CLARO IAT"
+ * A função remove o prefixo (tudo até o primeiro espaço), normaliza e aplica aliases.
+ */
 export function padronizarNomeCidade(grupoOriginal: string): string {
   if (!grupoOriginal) return '';
+  // Extrai tudo após o primeiro espaço (remove o código tipo "21/FERRAM." ou "21/CLARO")
   let nome = grupoOriginal.substring(grupoOriginal.indexOf(' ') + 1).trim().toUpperCase();
   nome = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
   nome = nome.replace(/\.\s+/g, '.');
-  return ALIAS_CIDADE[nome] || nome;
+
+  // Lookup direto pelo nome parcial
+  if (ALIAS_CIDADE[nome]) return ALIAS_CIDADE[nome];
+
+  // Lookup pelo grupo completo normalizado (sem o prefixo numérico)
+  // Ex: "21/FERRAM. CLARO IAT" → remove "21/" → "FERRAM. CLARO IAT" → normaliza → "FERRAM.CLARO IAT"
+  const semPrefixo = grupoOriginal.replace(/^\d+\//, '').trim().toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+    .replace(/\.\s+/g, '.');
+  if (ALIAS_CIDADE[semPrefixo]) return ALIAS_CIDADE[semPrefixo];
+
+  return nome;
 }
 
 export function filtrarMateriais(
