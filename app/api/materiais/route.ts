@@ -13,11 +13,34 @@ export async function GET(request: NextRequest) {
     let query = '';
     let params: any[] = [];
 
+    // Exclui itens que NÃO são ferramentas nem SSO:
+    // prefixos DET- / REAP- / DEF- e equipamentos de medição/fusão/maquinário
+    const EXCLUDE_TIPOS = `
+      AND descricao NOT ILIKE 'DET-%'
+      AND descricao NOT ILIKE 'REAP-%'
+      AND descricao NOT ILIKE 'DEF-%'
+      AND descricao NOT ILIKE '%MAQUINA%'
+      AND descricao NOT ILIKE '%MÁQUINA%'
+      AND descricao NOT ILIKE '%OTDR%'
+      AND descricao NOT ILIKE '%CLIVADOR%'
+      AND descricao NOT ILIKE '%MEDIDOR%'
+      AND descricao NOT ILIKE '%LEAKAGE%'
+      AND descricao NOT ILIKE '%GERADOR%'
+      AND descricao NOT ILIKE '%OLP-88%'
+      AND descricao NOT ILIKE '%ONU FINDER%'
+      AND descricao NOT ILIKE '%POWER MEETER%'
+      AND descricao NOT ILIKE '%IDENTIFICADOR DE FIBRA%'
+      AND descricao NOT ILIKE '%ESCADA DE FIBRA%'
+      AND descricao NOT ILIKE '%EQUIPAMENTO%'
+      AND descricao NOT ILIKE '%EMPILHADEIRA%'
+    `;
+
     if (!cidade || cidade === 'todos' || !contrato || contrato === 'todos') {
       // Sem filtro específico: retorna todos os materiais dos contratos autorizados
       query = `
         SELECT * FROM vw_estoque_contagem
         WHERE contrato = ANY($1::int[])
+        ${EXCLUDE_TIPOS}
         ORDER BY descricao
       `;
       params = [Array.from(CONTRATOS_AUTORIZADOS)];
@@ -33,6 +56,7 @@ export async function GET(request: NextRequest) {
       query = `
         SELECT * FROM vw_estoque_contagem
         WHERE origem = $1 AND contrato = $2
+        ${EXCLUDE_TIPOS}
         ORDER BY descricao
       `;
       params = [queryCidade, queryContrato];
