@@ -95,14 +95,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     }
 
     const dados = materiaisAnalitico.map((item, i) => {
-      const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+      const fisico = item.idsVinculados.reduce((acc: number, id: number) => {
         const val = contagens[id]?.novaQtd;
-        if (val !== undefined) return (acc || 0) + val;
-        return acc;
-      }, undefined);
+        return acc + (val !== undefined ? val : 0);
+      }, 0);
       
-      const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
-      const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+      const totalFisico = fisico * (item.precoUnitario || 0);
+      const totalFinal = totalFisico - item.valorEstoque;
 
       return {
         '#': i + 1,
@@ -111,11 +110,11 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         'Classe': item.classeABC ? `Classe ${item.classeABC}` : '—',
         'Descrição': item.descricao,
         'Saldo Sistêmico': item.saldoAtual,
-        'Saldo Físico': fisico !== undefined ? fisico : '—',
+        'Saldo Físico': fisico,
         'Preço Unitário': item.precoUnitario,
         'Total Sistêmico (R$)': item.valorEstoque,
-        'Total Físico (R$)': totalFisico !== undefined ? totalFisico : '—',
-        'Diferença Final (R$)': totalFinal !== undefined ? totalFinal : '—',
+        'Total Físico (R$)': totalFisico,
+        'Diferença Final (R$)': totalFinal,
       };
     });
 
@@ -283,7 +282,19 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           </button>
         </h3>
         <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
-          <table style={{ fontSize: '0.68rem', width: '100%', whiteSpace: 'nowrap' }}>
+          <style dangerouslySetInnerHTML={{__html: `
+            .compact-monitor-table th, 
+            .compact-monitor-table td {
+              padding: 6px 8px !important;
+              font-size: 0.65rem !important;
+            }
+            .compact-monitor-table th {
+              font-weight: 700 !important;
+              text-transform: uppercase;
+              letter-spacing: 0.02em;
+            }
+          `}} />
+          <table className="compact-monitor-table" style={{ width: '100%', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <tr>
                 <th>#</th><th>UF</th><th>Cidade</th><th>Classe</th><th>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
@@ -291,14 +302,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
             </thead>
             <tbody>
               {materiaisAnalitico.map((item, i) => {
-                const fisico = item.idsVinculados.reduce((acc: number | undefined, id: number) => {
+                const fisico = item.idsVinculados.reduce((acc: number, id: number) => {
                   const val = contagens[id]?.novaQtd;
-                  if (val !== undefined) return (acc || 0) + val;
-                  return acc;
-                }, undefined);
+                  return acc + (val !== undefined ? val : 0);
+                }, 0);
                 
-                const totalFisico = fisico !== undefined ? fisico * (item.precoUnitario || 0) : undefined;
-                const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
+                const totalFisico = fisico * (item.precoUnitario || 0);
+                const totalFinal = totalFisico - item.valorEstoque;
 
                 return (
                   <tr key={`${item.descricao}||${item.cidade}||${item.uf}`}>
@@ -322,17 +332,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                     <td title={item.descricao} style={{ fontWeight: 600 }}>{truncarTexto(item.descricao, 32)}</td>
                     <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
                     <td>
-                      {fisico !== undefined ? (
-                        <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{fisico}</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>—</span>
-                      )}
+                      <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{fisico}</span>
                     </td>
                     <td>{formatarMoeda(item.precoUnitario)}</td>
                     <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
-                    <td style={{ fontWeight: 600 }}>{totalFisico !== undefined ? formatarMoeda(totalFisico) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}</td>
-                    <td style={{ fontWeight: 600, color: totalFinal !== undefined ? getImpactoColor(totalFinal) : 'inherit' }}>
-                      {totalFinal !== undefined ? formatarMoeda(totalFinal) : <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>—</span>}
+                    <td style={{ fontWeight: 600 }}>{formatarMoeda(totalFisico)}</td>
+                    <td style={{ fontWeight: 600, color: getImpactoColor(totalFinal) }}>
+                      {formatarMoeda(totalFinal)}
                     </td>
                   </tr>
                 );
@@ -346,31 +352,27 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                 </td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
                   {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
-                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                    const f = item.idsVinculados.reduce((sum: number, id: number) => {
                       const val = contagens[id]?.novaQtd;
-                      if (val !== undefined) return (sum || 0) + val;
-                      return sum;
-                    }, undefined);
-                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
-                    return acc + tFisico;
+                      return sum + (val !== undefined ? val : 0);
+                    }, 0);
+                    return acc + (f * (item.precoUnitario || 0));
                   }, 0))}
                 </td>
                 <td style={{ fontWeight: 800, color: getImpactoColor(materiaisAnalitico.reduce((acc, item) => {
-                  const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                  const f = item.idsVinculados.reduce((sum: number, id: number) => {
                     const val = contagens[id]?.novaQtd;
-                    if (val !== undefined) return (sum || 0) + val;
-                    return sum;
-                  }, undefined);
-                  const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
+                    return sum + (val !== undefined ? val : 0);
+                  }, 0);
+                  const tFisico = f * (item.precoUnitario || 0);
                   return acc + (tFisico - item.valorEstoque);
                 }, 0)) }}>
                   {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
-                    const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                    const f = item.idsVinculados.reduce((sum: number, id: number) => {
                       const val = contagens[id]?.novaQtd;
-                      if (val !== undefined) return (sum || 0) + val;
-                      return sum;
-                    }, undefined);
-                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
+                      return sum + (val !== undefined ? val : 0);
+                    }, 0);
+                    const tFisico = f * (item.precoUnitario || 0);
                     return acc + (tFisico - item.valorEstoque);
                   }, 0))}
                 </td>
