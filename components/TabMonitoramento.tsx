@@ -322,7 +322,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
             </tbody>
             <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' }}>
               <tr style={{ background: 'var(--bg-card)', borderTop: '2px solid var(--border-color)' }}>
-                <td colSpan={5} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
+                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
                   {formatarMoeda(materiaisAnalitico.reduce((acc, item) => acc + item.valorEstoque, 0))}
                 </td>
@@ -333,17 +333,26 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                       if (val !== undefined) return (sum || 0) + val;
                       return sum;
                     }, undefined);
-                    return acc + (f !== undefined ? f * (item.precoUnitario || 0) : 0);
+                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
+                    return acc + tFisico;
                   }, 0))}
                 </td>
-                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                <td style={{ fontWeight: 800, color: getImpactoColor(materiaisAnalitico.reduce((acc, item) => {
+                  const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
+                    const val = contagens[id]?.novaQtd;
+                    if (val !== undefined) return (sum || 0) + val;
+                    return sum;
+                  }, undefined);
+                  const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
+                  return acc + (tFisico - item.valorEstoque);
+                }, 0)) }}>
                   {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
                     const f = item.idsVinculados.reduce((sum: number | undefined, id: number) => {
                       const val = contagens[id]?.novaQtd;
                       if (val !== undefined) return (sum || 0) + val;
                       return sum;
                     }, undefined);
-                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : 0;
+                    const tFisico = f !== undefined ? f * (item.precoUnitario || 0) : item.valorEstoque;
                     return acc + (tFisico - item.valorEstoque);
                   }, 0))}
                 </td>
