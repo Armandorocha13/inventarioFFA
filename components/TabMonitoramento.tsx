@@ -9,6 +9,7 @@ import {
   getBadgeClass,
 } from '@/lib/auxiliaresUI';
 import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
+import { padronizarNomeCidade } from '@/lib/filtros';
 
 interface TabMonitoramentoProps {
   materiais: Material[];
@@ -26,19 +27,9 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const financeiro = calcularFinanceiroDivergencias(materiais, contagens);
   const { resultadoLiquido } = financeiro;
 
-  const valorTotalFisico = materiais.reduce((acc, m) => {
-    const f = contagens[m.id]?.novaQtd;
-    return acc + (f !== undefined ? f * (m.precoUnitario || 0) : 0);
-  }, 0);
-  const maxValorFinanceiro = Math.max(valorTotalEstoque, valorTotalFisico, 1);
-  const pctSistemico = Math.round((valorTotalEstoque / maxValorFinanceiro) * 100);
-  const pctFisico = Math.round((valorTotalFisico / maxValorFinanceiro) * 100);
-  const pctFinal = Math.min(100, Math.round((Math.abs(resultadoLiquido) / maxValorFinanceiro) * 100));
 
-  const abc = classificarCurvaABC(materiais, contagens);
-  const valorA = abc.classes.A.reduce((s, i) => s + i.valorEstoque, 0);
-  const valorB = abc.classes.B.reduce((s, i) => s + i.valorEstoque, 0);
-  const valorC = abc.classes.C.reduce((s, i) => s + i.valorEstoque, 0);
+
+
 
   const totalDisponivel = materiais.filter((m) => m.saldoAtual > 0).length;
   const totalZerado = materiais.filter((m) => m.saldoAtual === 0).length;
@@ -72,10 +63,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     return [{ descricao: m.descricao, origem: m.origem, saldoAtual: m.saldoAtual, novaQtd, desvio, impacto: desvio * (m.precoUnitario || 0) }];
   });
 
-  const maxValor = Math.max(valorA, valorB, valorC, 1);
-  const pctBarA = Math.round((valorA / maxValor) * 100);
-  const pctBarB = Math.round((valorB / maxValor) * 100);
-  const pctBarC = Math.round((valorC / maxValor) * 100);
+
   const pctDisponivel = totalItens > 0 ? Math.round((totalDisponivel / totalItens) * 100) : 0;
   const pctZerado = totalItens > 0 ? Math.round((totalZerado / totalItens) * 100) : 0;
 
@@ -172,7 +160,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
       </div>
 
       {/* Dashboard Grid */}
-      <div className="dashboard-grid animate-fade-in">
+      <div className="dashboard-grid animate-fade-in" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))' }}>
         {/* Gauge Acuracidade */}
         <div className="chart-card">
           <div className="chart-card-title"><i className="fas fa-bullseye"></i> Acuracidade das Auditorias</div>
@@ -193,216 +181,82 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           </div>
         </div>
 
-        {/* Valores Totais */}
+        {/* Gráfico de Acuracidade por Cidade */}
         <div className="chart-card">
-          <div className="chart-card-title"><i className="fas fa-wallet"></i> Balanço Financeiro</div>
-          <div className="chart-container" style={{ flexDirection: 'column', justifyContent: 'space-around', gap: '0.75rem', padding: '1rem 0' }}>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
-                <span>Total Sistêmico</span><span>{formatarMoeda(valorTotalEstoque)}</span>
-              </div>
-              <div className="progress-track" style={{ height: '10px' }}>
-                <div style={{ width: `${pctSistemico}%`, height: '100%', borderRadius: '4px', background: 'var(--text-main)' }} />
-              </div>
-            </div>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
-                <span>Total Físico</span><span>{formatarMoeda(valorTotalFisico)}</span>
-              </div>
-              <div className="progress-track" style={{ height: '10px' }}>
-                <div style={{ width: `${pctFisico}%`, height: '100%', borderRadius: '4px', background: 'var(--success)' }} />
-              </div>
-            </div>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600 }}>
-                <span>Resultado Final (Diferença)</span><span style={{ color: getImpactoColor(resultadoLiquido) }}>{formatarMoeda(resultadoLiquido)}</span>
-              </div>
-              <div className="progress-track" style={{ height: '10px' }}>
-                <div style={{ width: `${pctFinal}%`, height: '100%', borderRadius: '4px', background: getImpactoColor(resultadoLiquido) }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Gráfico de Acuracidade por UF */}
-        <div className="chart-card">
-          <div className="chart-card-title"><i className="fas fa-chart-column"></i> Acuracidade por UF</div>
-          <div className="chart-container" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '100%', padding: '1rem', gap: '0.25rem', overflow: 'hidden' }}>
-            {Object.entries(
+          <div className="chart-card-title"><i className="fas fa-chart-column"></i> Acuracidade por Cidade</div>
+          {(() => {
+            const items = Object.entries(
               materiais.reduce((acc, m) => {
-                const cidadeUpper = (m.origem || '').toUpperCase();
-                let uf = 'Outros';
-                if (cidadeUpper === 'ESPIRITO SANTO' || cidadeUpper === 'ES') uf = 'Espírito Santo';
-                else if (cidadeUpper === 'SÃO PAULO' || cidadeUpper === 'SAO PAULO' || cidadeUpper === 'SP') uf = 'São Paulo';
-                else if (cidadeUpper === 'CURITIBA' || cidadeUpper === 'PARANA' || cidadeUpper === 'PARANÁ' || cidadeUpper === 'PR') uf = 'Paraná';
-                else if (cidadeUpper === 'MINAS GERAIS' || cidadeUpper === 'MG') uf = 'Minas Gerais';
-                else if ((cidadeUpper.includes('RIO') && cidadeUpper.includes('JANEIRO')) || cidadeUpper === 'RJ') uf = 'Rio de Janeiro';
-
-                if (!acc[uf]) acc[uf] = [];
-                acc[uf].push(m);
+                const city = padronizarNomeCidade(m.grupo || '') || 'OUTRAS';
+                if (!acc[city]) acc[city] = [];
+                acc[city].push(m);
                 return acc;
               }, {} as Record<string, Material[]>)
             )
-            .filter(([uf]) => uf !== 'Outros') // Garante que só os 5 estados oficiais apareçam
-            .map(([uf, mats]) => {
+            .map(([cidade, mats]) => {
               const stats = calcularAcuracidade(mats, contagens);
-              return { uf, taxa: stats.taxaAcuracidade, contados: stats.contados };
-            }).sort((a, b) => b.taxa - a.taxa || a.uf.localeCompare(b.uf)).map((item) => (
-              <div key={item.uf} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '0.25rem', height: '100%', overflow: 'hidden' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', marginTop: 'auto' }}>
-                  {item.taxa}%
-                </div>
-                <div style={{ width: '20px', height: '120px', display: 'flex', alignItems: 'flex-end', background: 'var(--glass-bg)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ 
-                    width: '100%', 
-                    height: `${item.taxa}%`, 
-                    background: item.taxa === 100 ? 'var(--success)' : item.taxa >= 80 ? 'var(--warning)' : 'var(--danger)',
-                    transition: 'height 0.8s ease',
-                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
-                  }} />
-                </div>
-                <div style={{ fontSize: '0.55rem', fontWeight: 600, textAlign: 'center', textTransform: 'uppercase', minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', wordBreak: 'break-word', lineHeight: '1.1' }}>
-                  {item.uf}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+              return { cidade, taxa: stats.taxaAcuracidade, contados: stats.contados };
+            })
+            .sort((a, b) => b.contados - a.contados || b.taxa - a.taxa || a.cidade.localeCompare(b.cidade));
 
-      {/* Curva ABC Section */}
-      <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
-        <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.15rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <i className="fas fa-chart-pie" style={{ color: 'var(--text-main)' }}></i> Classificação Curva ABC (Base de Dados De-Para)
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-          {(
-            [
-              { 
-                classe: 'A', 
-                label: 'Classe A (Alto Impacto)', 
-                total: valorA, 
-                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorA / abc.valorTotalEstoque) * 100) : 0,
-                colorGradient: 'linear-gradient(180deg, #3b82f6, #1d4ed8)', // Azul Elétrico
-                badgeBg: 'rgba(59, 130, 246, 0.1)',
-                badgeText: '#2563eb'
-              },
-              { 
-                classe: 'B', 
-                label: 'Classe B (Médio Impacto)', 
-                total: valorB, 
-                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorB / abc.valorTotalEstoque) * 100) : 0,
-                colorGradient: 'linear-gradient(180deg, #10b981, #047857)', // Verde Esmeralda
-                badgeBg: 'rgba(16, 185, 129, 0.1)',
-                badgeText: '#059669'
-              },
-              { 
-                classe: 'C', 
-                label: 'Classe C (Baixo Impacto)', 
-                total: valorC, 
-                pctVal: abc.valorTotalEstoque > 0 ? Math.round((valorC / abc.valorTotalEstoque) * 100) : 0,
-                colorGradient: 'linear-gradient(180deg, #f59e0b, #b45309)', // Âmbar
-                badgeBg: 'rgba(245, 158, 11, 0.1)',
-                badgeText: '#d97706'
-              },
-            ] as const
-          ).map(({ classe, label, total, pctVal, colorGradient, badgeBg, badgeText }) => {
-            const count = abc.classes[classe].length;
-            const pctItens = totalItens > 0 ? Math.round((count / totalItens) * 100) : 0;
-            const accClasse = abc.acuracidadePorClasse[classe];
-            
-            // Definição visual do status de acuracidade
-            let accStatusLabel = 'Crítica';
-            let accStatusColor = 'var(--danger)';
-            let accStatusBg = 'rgba(239, 68, 68, 0.08)';
-            
-            if (accClasse === 100) {
-              accStatusLabel = 'Excelente';
-              accStatusColor = 'var(--success)';
-              accStatusBg = 'rgba(22, 163, 74, 0.08)';
-            } else if (accClasse >= 80) {
-              accStatusLabel = 'Estável';
-              accStatusColor = 'var(--warning)';
-              accStatusBg = 'rgba(245, 158, 11, 0.08)';
+            if (items.length === 0) {
+              return (
+                <div className="chart-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem' }}>
+                    Nenhuma cidade disponível sob os filtros atuais.
+                  </div>
+                </div>
+              );
             }
 
+            const justifyValue = items.length <= 6 ? 'space-around' : 'flex-start';
+
             return (
-              <div key={classe} className="stat-card" style={{ 
-                background: 'var(--glass-bg-strong)', 
-                border: '1px solid var(--glass-border)', 
-                borderRadius: '12px', 
-                padding: '1.5rem 1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem',
-                position: 'relative',
-                overflow: 'hidden',
-                textAlign: 'left',
-                boxShadow: 'var(--shadow-sm)'
+              <div className="chart-container" style={{ 
+                display: 'flex', 
+                alignItems: 'flex-end', 
+                justifyContent: justifyValue, 
+                height: '100%', 
+                padding: '1rem', 
+                gap: '0.75rem', 
+                overflowX: 'auto', 
+                overflowY: 'hidden' 
               }}>
-                {/* Indicador de cor na borda esquerda */}
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  bottom: 0, 
-                  width: '5px', 
-                  background: colorGradient 
-                }} />
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px' }}>
-                  <span style={{ fontSize: '1.35rem', fontWeight: 800, fontFamily: "'Quicksand', sans-serif", letterSpacing: '-0.02em' }}>
-                    Classe {classe}
-                  </span>
-                  <span className="badge" style={{ 
-                    background: badgeBg,
-                    color: badgeText,
-                    fontSize: '0.68rem',
-                    padding: '0.25rem 0.6rem'
+                {items.map((item) => (
+                  <div key={item.cidade} style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    flex: items.length <= 6 ? '1' : '0 0 65px', 
+                    width: items.length <= 6 ? 'auto' : '65px', 
+                    gap: '0.25rem', 
+                    height: '100%', 
+                    overflow: 'hidden' 
                   }}>
-                    {label}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '8px', fontSize: '0.85rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Itens Cadastrados:</span>
-                    <span style={{ fontWeight: 700 }}>{count} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>({pctItens}%)</span></span>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', marginTop: 'auto' }}>
+                      {item.taxa}%
+                    </div>
+                    <div style={{ width: '22px', height: '120px', display: 'flex', alignItems: 'flex-end', background: 'var(--glass-bg)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ 
+                        width: '100%', 
+                        height: `${item.taxa}%`, 
+                        background: item.taxa === 100 ? 'var(--success)' : item.taxa >= 80 ? 'var(--warning)' : 'var(--danger)',
+                        transition: 'height 0.8s ease',
+                        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+                      }} />
+                    </div>
+                    <div style={{ fontSize: '0.55rem', fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', minHeight: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', wordBreak: 'break-word', lineHeight: '1.1', color: 'var(--text-muted)' }}>
+                      {item.cidade}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Valor em Estoque:</span>
-                    <span style={{ fontWeight: 700 }}>{formatarMoeda(total)} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>({pctVal}%)</span></span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Acuracidade Física:</span>
-                    <span className="badge" style={{ 
-                      fontWeight: 700, 
-                      color: accStatusColor,
-                      background: accStatusBg,
-                      fontSize: '0.72rem',
-                      padding: '0.2rem 0.5rem'
-                    }}>
-                      {accStatusLabel} ({accClasse}%)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Barra de Progresso do Valor */}
-                <div style={{ paddingLeft: '8px', marginTop: '0.25rem' }}>
-                  <div className="progress-track" style={{ height: '6px' }}>
-                    <div style={{ 
-                      width: `${pctVal}%`, 
-                      height: '100%', 
-                      borderRadius: '3px', 
-                      background: colorGradient
-                    }} />
-                  </div>
-                </div>
+                ))}
               </div>
             );
-          })}
+          })()}
         </div>
       </div>
+
+
 
       {/* Tabela Analítica */}
       <div className="card animate-fade-in" style={{ marginTop: '2rem', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
@@ -499,71 +353,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         </div>
       </div>
 
-      {/* Divergências Ativas */}
-      {divergenciasAtivas.length > 0 && (
-        <div className="card animate-fade-in" style={{ marginTop: '2rem' }}>
-          <h3 
-            onClick={() => setDivergenciasAbertas(!divergenciasAbertas)}
-            style={{ 
-              fontFamily: "'Quicksand', sans-serif", 
-              fontWeight: 800, 
-              fontSize: '1.15rem', 
-              marginBottom: divergenciasAbertas ? '1.25rem' : '0px', 
-              color: 'var(--warning)', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <i className="fas fa-exclamation-triangle"></i> Divergências Ativas ({divergenciasAtivas.length})
-            </span>
-            <i className={`fas fa-chevron-${divergenciasAbertas ? 'up' : 'down'}`} style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}></i>
-          </h3>
-          {divergenciasAbertas && (
-            <div className="table-responsive">
-              <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                <thead>
-                  <tr>
-                    <th>Material</th>
-                    <th>Origem</th>
-                    <th>Saldo Sistema</th>
-                    <th>Contagem Física</th>
-                    <th>Desvio</th>
-                    <th>Impacto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {divergenciasAtivas.map((d, i) => (
-                    <tr key={i}>
-                      <td><strong>{d.descricao}</strong></td>
-                      <td><span className="badge-unidade" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{d.origem}</span></td>
-                      <td><span className="badge badge-ok" style={{ background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)' }}>{d.saldoAtual}</span></td>
-                      <td><span className="badge badge-ok" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>{d.novaQtd}</span></td>
-                      <td>
-                        {d.desvio > 0 ? (
-                          <span className="badge-diff sobra" style={{ backgroundColor: 'rgba(22, 163, 74, 0.08)', color: 'var(--success)', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                            <i className="fas fa-arrow-up"></i> +{d.desvio}
-                          </span>
-                        ) : (
-                          <span className="badge-diff falta" style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', color: 'var(--danger)', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                            <i className="fas fa-arrow-down"></i> {d.desvio}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ color: getImpactoColor(d.impacto), fontWeight: 700 }}>
-                        {d.impacto > 0 ? `+${formatarMoeda(d.impacto)}` : formatarMoeda(d.impacto)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+
     </div>
   );
 }

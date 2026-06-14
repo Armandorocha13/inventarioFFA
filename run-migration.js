@@ -26,14 +26,10 @@ async function runMigration() {
   try {
     await client.query('BEGIN');
     
-    // 1. Drop old table
-    console.log("Dropping progresso_contagem...");
-    await client.query('DROP TABLE IF EXISTS progresso_contagem CASCADE;');
-
-    // 2. Create new table
-    console.log("Creating progresso_contagem...");
+    // 1. Create tables if they do not exist
+    console.log("Ensuring progresso_contagem exists...");
     await client.query(`
-      CREATE TABLE progresso_contagem (
+      CREATE TABLE IF NOT EXISTS progresso_contagem (
         id SERIAL PRIMARY KEY,
         cidade VARCHAR(255),
         grupo VARCHAR(255),
@@ -44,7 +40,17 @@ async function runMigration() {
       );
     `);
 
-    // 3. Create view
+    console.log("Ensuring de_para_itens exists...");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS de_para_itens (
+        id SERIAL PRIMARY KEY,
+        grupo VARCHAR(255),
+        codmat VARCHAR(255),
+        UNIQUE(grupo, codmat)
+      );
+    `);
+
+    // 2. Create view
     console.log("Creating view vw_estoque_contagem...");
     await client.query(`
       CREATE OR REPLACE VIEW vw_estoque_contagem AS
@@ -62,6 +68,8 @@ async function runMigration() {
       FROM saldo_estoque se
       JOIN (SELECT contrato, MAX(TRIM(cidade)) as cidade FROM de_para_projeto GROUP BY contrato) dp 
         ON CAST(se.grupo_codigo AS INTEGER) = dp.contrato
+      JOIN de_para_itens dpi
+        ON se.grupo = dpi.grupo AND se.codmat = dpi.codmat
       LEFT JOIN progresso_contagem pc 
         ON pc.codmat = se.codmat AND pc.cidade = dp.cidade AND pc.grupo = se.grupo
       WHERE se.codmat NOT ILIKE 'S%' 

@@ -159,6 +159,8 @@ export default function AppScreen({
 
   const handleEstadoChange = useCallback((estado: string) => {
     setFiltroEstado(estado);
+    setFiltroGrupo('todas'); // Reset city/group filter on state change
+    
     // Reset selected contract if it does not belong to the selected state
     if (estado !== 'todos' && codigoAlmox !== 'todos' && codigoAlmox !== '') {
       const base = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
@@ -175,7 +177,7 @@ export default function AppScreen({
         }
       }
     }
-  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange]);
+  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange, setFiltroGrupo]);
 
   const handleSalvarContagens = useCallback(async () => {
     setSalvando(true);
@@ -220,6 +222,21 @@ export default function AppScreen({
     if (aba === 'contagem') return 'Contagem Ativa';
     return 'Painel de Monitoramento';
   };
+
+  // Filter raw materials by selected UF (Estado) first, to populate the city filter options dynamically
+  const materiaisDoEstado = state.materiais.filter((m) => {
+    if (filtroEstado !== 'todos') {
+      let matUf = 'RJ';
+      const origemUpper = (m.origem || '').toUpperCase();
+      if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') matUf = 'ES';
+      else if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') matUf = 'SP';
+      else if (origemUpper === 'CURITIBA') matUf = 'PR';
+      else if (origemUpper === 'MINAS GERAIS') matUf = 'MG';
+      
+      return matUf === filtroEstado;
+    }
+    return true;
+  });
 
   // Dynamic frontend filtering for Estado, Projeto, and Classificacao
   const materiaisBase = state.materiaisVisiveis.filter((m) => {
@@ -387,7 +404,7 @@ export default function AppScreen({
                     onChange={(e) => setFiltroGrupo(e.target.value)}
                   >
                     <option value="todas">Todas as cidades</option>
-                    {Array.from(new Set(state.materiais.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
+                    {Array.from(new Set(materiaisDoEstado.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
                       <option key={cityName} value={cityName}>{cityName}</option>
                     ))}
                   </select>

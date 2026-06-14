@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       `;
       params = [Array.from(CONTRATOS_AUTORIZADOS)];
     } else {
-      const queryCidade = (cidade || '').trim();
+      const queryCidade = (cidade || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
       const queryContrato = parseInt(contrato || '', 10);
 
       // Validar se o contrato está autorizado
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
       query = `
         SELECT * FROM vw_estoque_contagem
-        WHERE origem = $1 AND contrato = $2
+        WHERE TRANSLATE(UPPER(origem), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC') = $1 AND contrato = $2
         ${EXCLUDE_TIPOS}
         ORDER BY descricao
       `;

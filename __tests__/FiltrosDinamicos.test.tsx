@@ -54,7 +54,7 @@ const mockInventario = {
     contagens: {},
     colunaOrdenacao: null,
     direcaoOrdenacao: 'asc',
-    filtros: { termo: '', tipo: 'todos' },
+    filtros: { termo: '', tipo: 'todos', grupo: 'todas' },
     carregando: false,
   },
   setAba: vi.fn(),
@@ -63,6 +63,7 @@ const mockInventario = {
   restaurarContagens: vi.fn(),
   setFiltroTermo: vi.fn(),
   setFiltroTipo: vi.fn(),
+  setFiltroGrupo: vi.fn(),
   ordenarColuna: vi.fn(),
   resetar: vi.fn(),
   gravarContagens: vi.fn(),
@@ -142,5 +143,50 @@ describe('Filtros Dinâmicos na AppScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/Monitoramento \(1 itens\)/i)).toBeInTheDocument();
     });
+  });
+
+  it('deve resetar o filtro de cidade e atualizar as opções ao mudar o estado', async () => {
+    const mockInventarioComAlmox = {
+      ...mockInventario,
+      state: {
+        ...mockInventario.state,
+        filtros: { termo: '', tipo: 'todos', grupo: 'todas' },
+        materiais: [
+          { id: 1, origem: 'RIO DE JANEIRO', grupo: '21/CLARO LAGOS', codmat: '100', descricao: 'Cabo', unidade: 'M', saldoAtual: 100, precoUnitario: 5, classeABC: 'A' },
+          { id: 2, origem: 'SÃO PAULO', grupo: '31/SAO PAULO', codmat: '200', descricao: 'Poste', unidade: 'UN', saldoAtual: 10, precoUnitario: 50, classeABC: 'B' },
+        ],
+      }
+    };
+
+    const { container } = render(
+      <AppScreen
+        uf="todos"
+        almoxarifados={mockAlmoxarifados}
+        todos={mockTodos}
+        inventario={mockInventarioComAlmox as any}
+        perfil="monitoramento"
+        onVoltarLanding={vi.fn()}
+        toast={vi.fn()}
+      />
+    );
+
+    // Habilita exibição definindo contrato como 'todos'
+    const selectProjeto = container.querySelector('#selectProjeto') as HTMLSelectElement;
+    fireEvent.change(selectProjeto, { target: { value: 'todos' } });
+
+    // O dropdown de cidade deve renderizar
+    const selectCidade = container.querySelector('#cidadeFilter') as HTMLSelectElement;
+    expect(selectCidade).toBeInTheDocument();
+
+    // Com o Estado em "todos", deve mostrar tanto "LAGOS" quanto "SAO PAULO"
+    expect(screen.getByText('LAGOS')).toBeInTheDocument();
+    expect(screen.getByText('SAO PAULO')).toBeInTheDocument();
+
+    // Mudar o Estado para SP
+    const selectEstado = container.querySelector('#selectEstado') as HTMLSelectElement;
+    fireEvent.change(selectEstado, { target: { value: 'SP' } });
+
+    // Deve ter chamado setFiltroGrupo com 'todas'
+    expect(mockInventarioComAlmox.setFiltroGrupo).toHaveBeenCalledWith('todas');
   });
 });

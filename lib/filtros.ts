@@ -36,29 +36,179 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "N.FRIBURGO": "NOVA FRIBURGO",
   "SEG NOVA FRIBURGO": "NOVA FRIBURGO",
   "REGULADOR FRIBURGO": "NOVA FRIBURGO",
+
+  // Adições para resolver o problema dos filtros de cidade:
+  // Paraná / Curitiba
+  "- CLARO IAT - PR": "CURITIBA",
+  "- LIGGA CTB - PR": "CURITIBA",
+  "CURITIBA PR": "CURITIBA",
+  "CORRETIVA": "CURITIBA",
+  "LIGGA CTB - PR": "CURITIBA",
+  "CLARO IAT - PR": "CURITIBA",
+  "FERRAM CURITIBA PR": "CURITIBA",
+  "71/- CLARO IAT - PR": "CURITIBA",
+  "71/- LIGGA CTB - PR": "CURITIBA",
+  "71/CORRETIVA": "CURITIBA",
+  "71/C.GRANDE": "CURITIBA",
+  "72/SSO - LIGGA CTB - PR": "CURITIBA",
+  "72/SSO - CLARO IAT - PR": "CURITIBA",
+  "71/FERRAM CURITIBA PR": "CURITIBA",
+
+  // São Paulo
+  "D TRABALHO": "SAO PAULO",
+  "DO TRABALHO SP": "SAO PAULO",
+  "SP": "SAO PAULO",
+  "SAO PAULO": "SAO PAULO",
+  "SÃO PAULO": "SAO PAULO",
+  "FERRAMENTARIA SP": "SAO PAULO",
+  "31/FERRAMENTARIA SP": "SAO PAULO",
+  "01/FERRAMENTARIA SP": "SAO PAULO",
+  "01/SP": "SAO PAULO",
+  "01/DO TRABALHO SP": "SAO PAULO",
+  "31/D TRABALHO": "SAO PAULO",
+  "31/SAO PAULO": "SAO PAULO",
+  "36/FTTC": "SAO PAULO",
+  "36/FTTH": "SAO PAULO",
+  "36/REGULADOR": "SAO PAULO",
+  "37/REGROUP": "SAO PAULO",
+  "37/CLEAN UP": "SAO PAULO",
+  "38/ADEQUACAO": "SAO PAULO",
+  "38/ALIVIO": "SAO PAULO",
+  "37/UP": "SAO PAULO",
+
+  // Campo Grande
+  "C.GRANDE": "CAMPO GRANDE",
+  "FERRAM. C.GRANDE": "CAMPO GRANDE",
+  "21/FERRAM. C.GRANDE": "CAMPO GRANDE",
+  
+  // Espírito Santo
+  "ESPIRITO SANTO": "ESPIRITO SANTO",
+  "SSO ES": "ESPIRITO SANTO",
+  "FERRAMENTAL VITÓRIA": "VITORIA",
+  "VITORIA": "VITORIA",
+  "61/ESPIRITO SANTO": "ESPIRITO SANTO",
+  "62/SSO ES": "ESPIRITO SANTO",
+  "61/FERRAMENTAL VITÓRIA": "VITORIA",
+  "64/ESSJC01": "ESPIRITO SANTO",
+  "64/535350": "ESPIRITO SANTO",
+  "64/ESCAR60": "ESPIRITO SANTO",
+  "64/SMA02": "ESPIRITO SANTO",
+  "64/ESPIU04": "ESPIRITO SANTO",
+  "64/COBERT LITORAL SUL": "ESPIRITO SANTO",
+  "64/ESCUP37": "ESPIRITO SANTO",
+  "64/REGULADOR": "ESPIRITO SANTO",
+  "65/570172 AGUIA BRANCA": "AGUIA BRANCA",
+  "65/REGULADOR": "ESPIRITO SANTO",
+  "65/561184  MILLS": "ESPIRITO SANTO",
+  "67/INST. GPON GIGAMAIS": "ESPIRITO SANTO",
+  "67/FERRAMENTAL GIGAMAIS": "ESPIRITO SANTO",
+  "61/SEGREGADO VILA VELHA": "VILA VELHA",
+
+  // Rio de Janeiro
+  "46/TI": "RIO DE JANEIRO",
+  "46/TI SP": "SAO PAULO",
+  "46/TI BELO HORIZONTE": "BELO HORIZONTE",
+  "46/TI LIGGA PR": "CURITIBA",
+  "46/TI ESPIRITO SANTO": "ESPIRITO SANTO",
+  "52/MINAS GERAIS": "BELO HORIZONTE",
+  "52/RIO DE JANEIRO": "RIO DE JANEIRO",
+  "52/PARANÁ": "CURITIBA",
+  "52/PARANA": "CURITIBA",
+  "2/02/SEGREGADO SP": "SAO PAULO",
+  "2/02/SEGREGADO RJ": "RIO DE JANEIRO",
+  "2/02/SEGREGADO LAGOS": "LAGOS",
+  "2/02/SEGREGADO NITERÓI": "NITEROI",
+  "999/999": "INVENTARIO",
+  "- CAMPOS": "CAMPOS",
+  "34/CLARO - CAMPOS": "CAMPOS",
+  "- LAGOS GPON": "LAGOS",
+  "34/CLARO - LAGOS GPON": "LAGOS",
+  "TRABALHO RJO": "RIO DE JANEIRO",
+  "41/SEG TRABALHO RJO": "RIO DE JANEIRO",
+  "TRESRIOS-PARAIBA": "TRES RIOS",
+  "47/MDU TRESRIOS-PARAIBA": "TRES RIOS",
+  "ESTOQUE": "RIO DE JANEIRO",
+  "47/MDU ESTOQUE": "RIO DE JANEIRO",
+  "PROJETO F": "RIO DE JANEIRO",
+  "47/MDU PROJETO F": "RIO DE JANEIRO",
+  "60/OBRA DUTRA": "RIO DE JANEIRO",
+  "60/OBRAS DE MANUTENÇÃO": "RIO DE JANEIRO",
+  "60/REG. REDE EXTERNA": "RIO DE JANEIRO",
+  "60/OBRA BTFAG": "RIO DE JANEIRO",
 };
 
 /**
  * Extrai e padroniza o nome da cidade a partir do campo `grupo` do material.
  * O campo grupo tem formato: "CODIGO/NOME_PROJETO" ex: "21/FERRAM. CLARO IAT"
  * A função remove o prefixo (tudo até o primeiro espaço), normaliza e aplica aliases.
+ * Se o resultado for genérico ou inválido, aplica fallback inteligente baseado no número do contrato.
  */
 export function padronizarNomeCidade(grupoOriginal: string): string {
   if (!grupoOriginal) return '';
-  // Extrai tudo após o primeiro espaço (remove o código tipo "21/FERRAM." ou "21/CLARO")
-  let nome = grupoOriginal.substring(grupoOriginal.indexOf(' ') + 1).trim().toUpperCase();
-  nome = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-  nome = nome.replace(/\.\s+/g, '.');
 
-  // Lookup direto pelo nome parcial
+  // 1. Lookup pelo grupo completo normalizado (com o prefixo numérico, ex: "36/FTTC")
+  const comPrefixo = grupoOriginal.trim().toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+    .replace(/\.\s+/g, '.');
+  if (ALIAS_CIDADE[comPrefixo]) return ALIAS_CIDADE[comPrefixo];
+
+  // 2. Extrair o nome após o primeiro espaço
+  let nome = '';
+  const idxEspaco = grupoOriginal.indexOf(' ');
+  if (idxEspaco !== -1) {
+    nome = grupoOriginal.substring(idxEspaco + 1).trim().toUpperCase();
+  } else {
+    // Se não tem espaço, remove o prefixo "XX/" se houver
+    nome = grupoOriginal.replace(/^\d+\//, '').trim().toUpperCase();
+  }
+  nome = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\.\s+/g, '.');
+
+  // 3. Lookup direto pelo nome parcial
   if (ALIAS_CIDADE[nome]) return ALIAS_CIDADE[nome];
 
-  // Lookup pelo grupo completo normalizado (sem o prefixo numérico)
-  // Ex: "21/FERRAM. CLARO IAT" → remove "21/" → "FERRAM. CLARO IAT" → normaliza → "FERRAM.CLARO IAT"
+  // 4. Lookup pelo nome sem o prefixo numérico (ex: "FERRAM.CLARO IAT")
   const semPrefixo = grupoOriginal.replace(/^\d+\//, '').trim().toUpperCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
     .replace(/\.\s+/g, '.');
   if (ALIAS_CIDADE[semPrefixo]) return ALIAS_CIDADE[semPrefixo];
+
+  // 5. Redirecionamentos para subgrupos interestaduais conhecidos
+  if (nome === 'SP' || nome === 'SAO PAULO' || nome === 'SÃO PAULO') return 'SAO PAULO';
+  if (nome === 'ESPIRITO SANTO' || nome === 'ES') return 'ESPIRITO SANTO';
+  if (nome.includes('PR') || nome.includes('PARANA') || nome.includes('CURITIBA') || nome.includes('LIGGA')) return 'CURITIBA';
+  if (nome.includes('BH') || nome.includes('BELO HORIZONTE') || nome.includes('MINAS') || nome.includes('MG')) return 'BELO HORIZONTE';
+
+  // 6. Lista de palavras-chave inválidas/genéricas que não indicam uma cidade/região real
+  const PALAVRAS_INVALIDAS = [
+    'CORRETIVA', 'TRABALHO', 'SP', 'RJ', 'ES', 'PR', 'MG', 'SSO', 'FERRAMENTAS', 'FERRAMENTAL', 'FERRAMENTARIA',
+    'FTTC', 'FTTH', 'CLEAN', 'UP', 'ADEQUACAO', 'ALIVIO', 'ESTOQUE', 'GPON', 'DUTRA', 'MANUTENCAO', 'PREVEN', 'PREVENTIVA',
+    'BOBINAS', 'COMPRAS', 'COAXIAL', 'BUZIOS', 'LIGGA', 'CLARO', 'TIM', 'VIVO', 'GIGAMAIS', 'MILLS', 'SEGREGADO',
+    'REGULADOR', 'GIGA', 'CPS', 'RJO', 'IAT', 'OBRA', 'OBRAS', 'NODE', 'FOTONICO', 'IMPLEMENTACAO', 'IMPLANTACAO',
+    'MDU', 'HFC', 'TI', 'HUB', 'SULACAP', 'PIEDADE', 'GENERICO', 'SGI'
+  ];
+
+  const contemInvalida = PALAVRAS_INVALIDAS.some(p => nome.includes(p));
+
+  // 7. Se o nome contiver palavras inválidas ou for genérico, aplicar fallback por contrato
+  if (contemInvalida || nome.length <= 3) {
+    const match = grupoOriginal.match(/^(\d+)\//);
+    if (match) {
+      const contrato = parseInt(match[1], 10);
+      if ([71, 72].includes(contrato)) return 'CURITIBA';
+      if ([1, 31, 36, 37, 38].includes(contrato)) return 'SAO PAULO';
+      if ([58, 59].includes(contrato)) return 'BELO HORIZONTE';
+      if ([61, 62, 64, 65, 67].includes(contrato)) return 'ESPIRITO SANTO';
+      if ([21, 23, 24, 34, 40, 41, 42, 43, 45, 47, 48, 49, 52, 60].includes(contrato)) {
+        if (contrato === 52) {
+          if (grupoOriginal.includes('PARANÁ')) return 'CURITIBA';
+          if (grupoOriginal.includes('MINAS')) return 'BELO HORIZONTE';
+          if (grupoOriginal.includes('SÃO PAULO')) return 'SAO PAULO';
+          return 'RIO DE JANEIRO';
+        }
+        return 'RIO DE JANEIRO';
+      }
+    }
+  }
 
   return nome;
 }

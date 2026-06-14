@@ -13,7 +13,7 @@
 |----|--------|:---:|:---:|
 | RJ | Rio de Janeiro | 21 | 41 |
 | ES | Espírito Santo | 61 | 62 |
-| SP | São Paulo | 31 | 31 |
+| SP | São Paulo | 1 | 31 |
 | MG | Minas Gerais | 58 | 59 |
 | PR | Paraná | 71 | 72 |
 

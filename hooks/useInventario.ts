@@ -145,8 +145,9 @@ export function useInventario() {
       let materiais: any[] = await res.json();
       
       if (cidadesValidas && cidadesValidas.length > 0) {
-        const permitidas = new Set(cidadesValidas.map((c) => c.toUpperCase()));
-        materiais = materiais.filter((m) => permitidas.has(m.origem.toUpperCase()));
+        const normalizeStr = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const permitidas = new Set(cidadesValidas.map(normalizeStr));
+        materiais = materiais.filter((m) => permitidas.has(normalizeStr(m.origem)));
       }
 
       // Cálculo Dinâmico da Curva ABC (Pareto 80/15/5) para o contexto atual
