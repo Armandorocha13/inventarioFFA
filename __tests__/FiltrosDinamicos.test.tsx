@@ -70,7 +70,7 @@ const mockInventario = {
 };
 
 describe('Filtros Dinâmicos na AppScreen', () => {
-  it('deve renderizar os seletores de Estado, Projeto e Classificação', () => {
+  it('deve renderizar os seletores de Estado, Projeto, Classificação e Auditados', () => {
     const { container } = render(
       <AppScreen
         uf="todos"
@@ -86,6 +86,45 @@ describe('Filtros Dinâmicos na AppScreen', () => {
     expect(container.querySelector('#selectEstado')).toBeInTheDocument();
     expect(container.querySelector('#selectProjeto')).toBeInTheDocument();
     expect(container.querySelector('#selectClasse')).toBeInTheDocument();
+    expect(container.querySelector('#selectAuditado')).toBeInTheDocument();
+  });
+
+  it('deve filtrar os materiais por status auditado (sim/nao)', async () => {
+    const mockInventarioAuditado = {
+      ...mockInventario,
+      state: {
+        ...mockInventario.state,
+        contagens: {
+          1: { novaQtd: 100, observacao: '' },
+        },
+      },
+    };
+
+    const { container } = render(
+      <AppScreen
+        uf="todos"
+        almoxarifados={mockAlmoxarifados}
+        todos={mockTodos}
+        inventario={mockInventarioAuditado as any}
+        perfil="monitoramento"
+        onVoltarLanding={vi.fn()}
+        toast={vi.fn()}
+      />
+    );
+
+    const selectAuditado = container.querySelector('#selectAuditado') as HTMLSelectElement;
+
+    // Filter by "sim" (only audited items)
+    fireEvent.change(selectAuditado, { target: { value: 'sim' } });
+    await waitFor(() => {
+      expect(screen.getByText(/Monitoramento \(1 itens\)/i)).toBeInTheDocument();
+    });
+
+    // Filter by "nao" (only non-audited items)
+    fireEvent.change(selectAuditado, { target: { value: 'nao' } });
+    await waitFor(() => {
+      expect(screen.getByText(/Monitoramento \(3 itens\)/i)).toBeInTheDocument();
+    });
   });
 
   it('deve filtrar os Projetos dinamicamente ao selecionar o Estado', async () => {

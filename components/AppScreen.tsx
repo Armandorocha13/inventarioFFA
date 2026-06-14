@@ -51,6 +51,7 @@ export default function AppScreen({
   // Novos filtros dinâmicos
   const [filtroEstado, setFiltroEstado] = useState(uf || 'todos');
   const [filtroClasse, setFiltroClasse] = useState('todas');
+  const [filtroAuditado, setFiltroAuditado] = useState<'todos' | 'sim' | 'nao'>('todos');
 
   const NOME_ESTADOS: Record<string, string> = {
     RJ: 'Rio de Janeiro',
@@ -240,7 +241,7 @@ export default function AppScreen({
     return true;
   });
 
-  // Dynamic frontend filtering for Estado, Projeto, and Classificacao
+  // Dynamic frontend filtering for Estado, Projeto, Classificacao, and Auditado
   const materiaisBase = state.materiaisVisiveis.filter((m) => {
     // 1. Filter by Estado
     if (filtroEstado !== 'todos') {
@@ -253,6 +254,15 @@ export default function AppScreen({
       
       if (matUf !== filtroEstado) return false;
     }
+
+    // 2. Filter by Auditado (sim/nao)
+    const foiAuditado = m.id in state.contagens;
+    if (filtroAuditado === 'sim') {
+      if (!foiAuditado) return false;
+    } else if (filtroAuditado === 'nao') {
+      if (foiAuditado) return false;
+    }
+
     return true;
   });
 
@@ -412,6 +422,19 @@ export default function AppScreen({
                   <option value="A">Classe A</option>
                   <option value="B">Classe B</option>
                   <option value="C">Classe C</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="selectAuditado"><i className="fas fa-clipboard-check"></i> Apenas Auditados</label>
+                <select
+                  id="selectAuditado"
+                  className="form-control"
+                  value={filtroAuditado}
+                  onChange={(e) => setFiltroAuditado(e.target.value as any)}
+                >
+                  <option value="todos">Todos</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
                 </select>
               </div>
               {codigoAlmox && (
