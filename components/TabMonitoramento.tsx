@@ -7,6 +7,7 @@ import {
   classificarCurvaABC,
   formatarMoeda,
   getBadgeClass,
+  truncarTexto,
 } from '@/lib/auxiliaresUI';
 import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
 import { padronizarNomeCidade } from '@/lib/filtros';
@@ -39,11 +40,22 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const circumference = 2 * Math.PI * radius;
   const dashoffset = circumference - (taxaAcuracidade / 100) * circumference;
 
+  const obterUF = (origem: string): string => {
+    const origemUpper = (origem || '').toUpperCase();
+    if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') return 'ES';
+    if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') return 'SP';
+    if (origemUpper === 'CURITIBA') return 'PR';
+    if (origemUpper === 'MINAS GERAIS') return 'MG';
+    return 'RJ';
+  };
+
   const materiaisAgrupadosPorNome = Array.from(
     materiais.reduce((map, m) => {
-      const key = m.descricao;
+      const city = padronizarNomeCidade(m.grupo || '') || 'OUTRAS';
+      const uf = obterUF(m.origem);
+      const key = `${m.descricao}||${city}||${uf}`;
       if (!map.has(key)) {
-        map.set(key, { ...m, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
+        map.set(key, { ...m, cidade: city, uf, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
       }
       const agrupado = map.get(key)!;
       agrupado.saldoAtual += m.saldoAtual;
@@ -94,6 +106,8 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
       return {
         '#': i + 1,
+        'UF': item.uf || '—',
+        'Cidade': item.cidade || '—',
         'Classe': item.classeABC ? `Classe ${item.classeABC}` : '—',
         'Descrição': item.descricao,
         'Saldo Sistêmico': item.saldoAtual,
@@ -269,10 +283,10 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           </button>
         </h3>
         <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
-          <table style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+          <table style={{ fontSize: '0.68rem', width: '100%', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <tr>
-                <th>#</th><th>Classe</th><th style={{ whiteSpace: 'normal', minWidth: '150px' }}>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
+                <th>#</th><th>UF</th><th>Cidade</th><th>Classe</th><th>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
               </tr>
             </thead>
             <tbody>
@@ -287,13 +301,17 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                 const totalFinal = totalFisico !== undefined ? totalFisico - item.valorEstoque : undefined;
 
                 return (
-                  <tr key={item.descricao}>
-                    <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)' }}>#{i + 1}</span></td>
+                  <tr key={`${item.descricao}||${item.cidade}||${item.uf}`}>
+                    <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)', padding: '2px 5px', fontSize: '0.6rem' }}>#{i + 1}</span></td>
+                    <td><span className="badge" style={{ background: 'var(--primary)', color: '#fff', fontWeight: 700, padding: '2px 5px', fontSize: '0.6rem' }}>{item.uf}</span></td>
+                    <td title={item.cidade} style={{ textTransform: 'uppercase', fontWeight: 600 }}>{truncarTexto(item.cidade, 12)}</td>
                     <td>
                       {item.classeABC ? (
                         <span className="badge" style={{ 
                           background: item.classeABC === 'A' ? 'var(--text-main)' : item.classeABC === 'B' ? 'var(--text-muted)' : 'var(--border-color)',
-                          color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff'
+                          color: item.classeABC === 'A' ? 'var(--bg-body)' : '#fff',
+                          padding: '2px 5px',
+                          fontSize: '0.6rem'
                         }}>
                           Classe {item.classeABC}
                         </span>
@@ -301,7 +319,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
-                    <td style={{ whiteSpace: 'normal', minWidth: '150px' }}><strong>{item.descricao}</strong></td>
+                    <td title={item.descricao} style={{ fontWeight: 600 }}>{truncarTexto(item.descricao, 32)}</td>
                     <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
                     <td>
                       {fisico !== undefined ? (
@@ -322,7 +340,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
             </tbody>
             <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' }}>
               <tr style={{ background: 'var(--bg-card)', borderTop: '2px solid var(--border-color)' }}>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
+                <td colSpan={8} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
                   {formatarMoeda(materiaisAnalitico.reduce((acc, item) => acc + item.valorEstoque, 0))}
                 </td>
