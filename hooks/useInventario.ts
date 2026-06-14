@@ -135,8 +135,14 @@ export function useInventario() {
     try {
       let url = '/api/materiais';
       if (codigoAlmox !== 'todos') {
-        const [cidade, contrato] = codigoAlmox.split('|');
+        const parts = codigoAlmox.split('|');
+        const cidade = parts[0];
+        const contrato = parts[1];
+        const projeto = parts[2];
         url = `/api/materiais?cidade=${encodeURIComponent(cidade)}&contrato=${encodeURIComponent(contrato)}`;
+        if (projeto) {
+          url += `&projeto=${encodeURIComponent(projeto)}`;
+        }
       } else {
         url = '/api/materiais?cidade=todos&contrato=todos';
       }

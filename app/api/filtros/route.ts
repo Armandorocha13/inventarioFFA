@@ -40,10 +40,6 @@ export async function GET() {
       // Filtrar apenas contratos autorizados
       if (!CONTRATOS_AUTORIZADOS.has(contrato)) return;
 
-      const codigo = `${cidade}|${contrato}`;
-      if (codigosVistos.has(codigo)) return;
-      codigosVistos.add(codigo);
-
       const uf = CONTRATO_UF_MAP[contrato];
       if (!uf) return;
 
@@ -53,16 +49,55 @@ export async function GET() {
 
       if (!almoxarifados[uf.sigla]) almoxarifados[uf.sigla] = [];
 
-      // Label amigável indicando o tipo de contrato
-      const tipoContrato = contrato === 31 ? 'FERRAMENTARIA E SSO' :
-        [1, 21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
+      const normCidade = cidade.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      if (normCidade === 'SAO PAULO' && (contrato === 1 || contrato === 31)) {
+        const key = `${cidade}|${contrato}`;
+        if (codigosVistos.has(key)) return;
+        codigosVistos.add(key);
 
-      almoxarifados[uf.sigla].push({
-        codigo,
-        label: `${cidade} - CONTRATO: ${contrato} (${tipoContrato})`,
-        cidade,
-        contrato,
-      });
+        if (contrato === 1) {
+          almoxarifados[uf.sigla].push({
+            codigo: `${cidade}|1|01/FERRAMENTARIA SP`,
+            label: `${cidade} - CONTRATO: 1 (FERRAMENTARIA)`,
+            cidade,
+            contrato,
+          });
+          almoxarifados[uf.sigla].push({
+            codigo: `${cidade}|1|01/SEG. DO TRABALHO SP`,
+            label: `${cidade} - CONTRATO: 1 (SSO)`,
+            cidade,
+            contrato,
+          });
+        } else if (contrato === 31) {
+          almoxarifados[uf.sigla].push({
+            codigo: `${cidade}|31|31/FERRAMENTARIA SP`,
+            label: `${cidade} - CONTRATO: 31 (FERRAMENTARIA)`,
+            cidade,
+            contrato,
+          });
+          almoxarifados[uf.sigla].push({
+            codigo: `${cidade}|31|31/SEGURANÇA D TRABALHO`,
+            label: `${cidade} - CONTRATO: 31 (SSO)`,
+            cidade,
+            contrato,
+          });
+        }
+      } else {
+        const codigo = `${cidade}|${contrato}`;
+        if (codigosVistos.has(codigo)) return;
+        codigosVistos.add(codigo);
+
+        // Label amigável indicando o tipo de contrato
+        const tipoContrato = contrato === 31 ? 'FERRAMENTARIA E SSO' :
+          [1, 21, 61, 58, 71].includes(contrato) ? 'FERRAMENTARIA' : 'SSO';
+
+        almoxarifados[uf.sigla].push({
+          codigo,
+          label: `${cidade} - CONTRATO: ${contrato} (${tipoContrato})`,
+          cidade,
+          contrato,
+        });
+      }
     });
 
     // Ordenar almoxarifados por contrato dentro de cada UF

@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const cidade = searchParams.get('cidade');
   const contrato = searchParams.get('contrato');
+  const projeto = searchParams.get('projeto');
 
   try {
     let query = '';
@@ -53,13 +54,21 @@ export async function GET(request: NextRequest) {
         return NextResponse.json([]);
       }
 
+      let extraFilter = '';
+      if (projeto) {
+        extraFilter = ' AND grupo = $3';
+        params = [queryCidade, queryContrato, projeto];
+      } else {
+        params = [queryCidade, queryContrato];
+      }
+
       query = `
         SELECT * FROM vw_estoque_contagem
         WHERE TRANSLATE(UPPER(origem), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC') = $1 AND contrato = $2
+        ${extraFilter}
         ${EXCLUDE_TIPOS}
         ORDER BY descricao
       `;
-      params = [queryCidade, queryContrato];
     }
 
     const result = await pool.query(query, params);
