@@ -163,8 +163,10 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Divergências</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: totalDivergentes > 0 ? 'var(--warning)' : 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{totalDivergentes}</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Contagens divergentes</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: totalDivergentes > 0 ? 'var(--warning)' : 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>
+              {totalContados} / {totalDivergentes}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Itens auditados / com divergência</span>
           </div>
           <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: totalDivergentes > 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: totalDivergentes > 0 ? '#d97706' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
             <i className="fas fa-exclamation-triangle"></i>
