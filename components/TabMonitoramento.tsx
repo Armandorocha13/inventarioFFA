@@ -14,10 +14,15 @@ import { padronizarNomeCidade } from '@/lib/filtros';
 interface TabMonitoramentoProps {
   materiais: Material[];
   contagens: ContagensMap;
+  onUploadSuccess?: () => Promise<void>;
 }
 
-export default function TabMonitoramento({ materiais, contagens }: TabMonitoramentoProps) {
+export default function TabMonitoramento({ materiais, contagens, onUploadSuccess }: TabMonitoramentoProps) {
   const [divergenciasAbertas, setDivergenciasAbertas] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
   const totalItens = materiais.length;
   const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.saldoAtual * (m.precoUnitario || 0), 0);
 
@@ -73,6 +78,52 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     return 'var(--text-main)';
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setStatusMessage(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    setStatusMessage({ text: 'Processando arquivo e atualizando banco...', type: 'info' });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload-saldo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao processar arquivo.');
+      }
+
+      setStatusMessage({ 
+        text: `Sucesso! ${data.insertedCount} registros importados. ${data.syncedCount} contagens sincronizadas.`, 
+        type: 'success' 
+      });
+      setFile(null);
+      
+      const fileInput = document.getElementById('fileUploadInput') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      if (onUploadSuccess) {
+        await onUploadSuccess();
+      }
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage({ text: err.message || 'Erro de conexão com o servidor.', type: 'error' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const exportarAnalitico = useCallback(() => {
     if (typeof window === 'undefined') return;
     const XLSX = (window as any).XLSX;
@@ -112,7 +163,68 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
   return (
     <div>
-      {/* KPIs */}
+      {/* Bloco de Upload do Saldo Estoque */}
+      <div className="card upload-card animate-fade-in" style={{ marginBottom: '1.5rem', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', padding: '1.5rem', borderRadius: '12px' }}>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <i className="fas fa-file-import" style={{ color: 'var(--text-main)' }}></i> Atualizar Saldo de Estoque (ERP)
+        </h3>
+        <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          Faça o upload do arquivo Excel bruto do saldo estoque (ex: <code>Saldo Estoque.xlsx</code>). O sistema fará o processamento, separação de códigos/grupos e sincronizará as contagens ativas automaticamente.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+          <label className="btn btn-secondary" style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>
+            <i className="fas fa-folder-open"></i> {file ? 'Alterar arquivo' : 'Selecionar arquivo Excel'}
+            <input 
+              id="fileUploadInput"
+              type="file" 
+              accept=".xlsx,.xls" 
+              onChange={handleFileChange} 
+              style={{ display: 'none' }} 
+              disabled={uploading}
+            />
+          </label>
+          {file && (
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+              Selecionado: <code>{file.name}</code> ({Math.round(file.size / 1024)} KB)
+            </span>
+          )}
+          {file && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleUpload} 
+              disabled={uploading}
+              style={{ margin: 0, padding: '8px 16px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              {uploading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i> Processando...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-cloud-upload-alt"></i> Confirmar Upload e Carga
+                </>
+              )}
+            </button>
+          )}
+        </div>
+        {statusMessage && (
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '10px 14px', 
+            borderRadius: '6px', 
+            fontSize: '0.8rem',
+            background: statusMessage.type === 'success' ? 'rgba(22, 163, 74, 0.1)' : statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+            color: statusMessage.type === 'success' ? 'var(--success)' : statusMessage.type === 'error' ? 'var(--danger)' : 'var(--text-main)',
+            border: `1px solid ${statusMessage.type === 'success' ? 'rgba(22, 163, 74, 0.2)' : statusMessage.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <i className={statusMessage.type === 'success' ? "fas fa-check-circle" : statusMessage.type === 'error' ? "fas fa-exclamation-circle" : "fas fa-info-circle"}></i>
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
+      </div>
       <div className="stats-container animate-fade-in">
         <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

@@ -465,7 +465,15 @@ export default function AppScreen({
                 />
               )}
               {state.abaAtiva === 'monitoramento' && (
-                <TabMonitoramento materiais={materiaisFiltrados} contagens={state.contagens} />
+                <TabMonitoramento 
+                  materiais={materiaisFiltrados} 
+                  contagens={state.contagens}
+                  onUploadSuccess={async () => {
+                    if (codigoAlmox) {
+                      await carregarMateriais(codigoAlmox);
+                    }
+                  }}
+                />
               )}
             </>
           )}
