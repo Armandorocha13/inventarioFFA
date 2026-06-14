@@ -31,10 +31,10 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const totalItens = materiais.length;
   const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.saldoAtual * (m.precoUnitario || 0), 0);
 
-  const totalDivergentes = materiaisComFisico.filter((m) => m.desvio !== 0).length;
-  const acertos = materiaisComFisico.filter((m) => m.desvio === 0).length;
-  const taxaAcuracidade = totalItens > 0 ? Math.round((acertos / totalItens) * 100) : 100;
-  const totalContados = totalItens;
+  const statsAcuracidade = calcularAcuracidade(materiais, contagens);
+  const totalDivergentes = statsAcuracidade.divergentes;
+  const taxaAcuracidade = statsAcuracidade.taxaAcuracidade;
+  const totalContados = statsAcuracidade.contados;
 
   const resultadoLiquido = materiaisComFisico.reduce((acc, m) => acc + m.impacto, 0);
 
@@ -218,20 +218,17 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
               }, {} as Record<string, Material[]>)
             )
             .map(([cidade, mats]) => {
-              const acertosCidade = mats.filter((m) => {
-                const physical = m.id in contagens ? contagens[m.id].novaQtd : 0;
-                return physical === m.saldoAtual;
-              }).length;
-              const taxa = mats.length > 0 ? Math.round((acertosCidade / mats.length) * 100) : 100;
-              return { cidade, taxa, contados: mats.length };
+              const res = calcularAcuracidade(mats, contagens);
+              return { cidade, taxa: res.taxaAcuracidade, contados: res.contados };
             })
+            .filter((item) => item.contados > 0)
             .sort((a, b) => b.contados - a.contados || b.taxa - a.taxa || a.cidade.localeCompare(b.cidade));
 
             if (items.length === 0) {
               return (
                 <div className="chart-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem' }}>
-                    Nenhuma cidade disponível sob os filtros atuais.
+                    Nenhuma cidade com auditoria iniciada sob os filtros atuais.
                   </div>
                 </div>
               );
