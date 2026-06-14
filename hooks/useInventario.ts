@@ -7,7 +7,7 @@ import type { FiltroState } from '@/lib/filtros';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AbaAtiva = 'contagem' | 'monitoramento';
+export type AbaAtiva = 'contagem' | 'monitoramento' | 'upload';
 
 export interface InventarioState {
   abaAtiva: AbaAtiva;

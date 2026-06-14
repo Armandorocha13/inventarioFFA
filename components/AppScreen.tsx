@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import TabContagem from './TabContagem';
 import TabMonitoramento from './TabMonitoramento';
+import TabUpload from './TabUpload';
 import ModalConfirmacao from './ModalConfirmacao';
 import type { useInventario } from '@/hooks/useInventario';
 import type { AbaAtiva } from '@/hooks/useInventario';
@@ -40,6 +41,7 @@ export default function AppScreen({
 }: AppScreenProps) {
   const { state, setAba, carregarMateriais, registrarContagem, restaurarContagens, setFiltroTermo, setFiltroTipo, setFiltroGrupo, ordenarColuna, gravarContagens } = inventario;
   const [codigoAlmox, setCodigoAlmox] = useState('');
+  const [abaAnterior, setAbaAnterior] = useState<AbaAtiva>('monitoramento');
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
@@ -300,6 +302,19 @@ export default function AppScreen({
           {/* Abas removidas por redundância pós-login dinâmico */}
 
           <div className="app-nav-actions">
+            {state.abaAtiva !== 'upload' && (
+              <button
+                className="btn-icon"
+                title="Atualizar Saldo (Upload Excel)"
+                onClick={() => {
+                  setAbaAnterior(state.abaAtiva);
+                  setAba('upload');
+                }}
+                style={{ marginRight: '10px' }}
+              >
+                <i className="fas fa-cloud-upload-alt"></i>
+              </button>
+            )}
             {perfil === 'monitoramento' ? (
               <button className="btn-icon" title="Sair do Sistema" onClick={onVoltarLanding} style={{ marginRight: '10px' }}>
                 <i className="fas fa-sign-out-alt"></i>
@@ -332,6 +347,11 @@ export default function AppScreen({
             {/* Abas mobile removidas */}
             <hr className="mobile-divider" />
             <div className="mobile-menu-actions">
+              {state.abaAtiva !== 'upload' && (
+                <button className="mobile-action-btn" onClick={() => { setAbaAnterior(state.abaAtiva); setAba('upload'); setMenuMobileAberto(false); }}>
+                  <i className="fas fa-cloud-upload-alt"></i> Atualizar Saldo (Upload)
+                </button>
+              )}
               <button className="mobile-action-btn" onClick={() => { alternarTema(); setMenuMobileAberto(false); }}>
                 <i className={`fas fa-${tema === 'claro' ? 'moon' : 'sun'}`}></i> Alternar Tema
               </button>
@@ -346,91 +366,102 @@ export default function AppScreen({
       {/* Conteúdo Principal */}
       <main className="app-main">
         {/* Filtros da Aplicação */}
-        <section className="card filters-card app-filters">
-          <div className="filtros-grid">
-            <div className="form-group">
-              <label htmlFor="selectEstado"><i className="fas fa-map-marker-alt"></i> Estado (UF)</label>
-              <select
-                id="selectEstado"
-                className="form-control"
-                value={filtroEstado}
-                onChange={(e) => handleEstadoChange(e.target.value)}
-              >
-                <option value="todos">Todos os Estados</option>
-                {todasUFs.map((ufSigla) => (
-                  <option key={ufSigla} value={ufSigla}>
-                    {NOME_ESTADOS[ufSigla] || ufSigla}
-                  </option>
-                ))}
-              </select>
+        {state.abaAtiva !== 'upload' && (
+          <section className="card filters-card app-filters">
+            <div className="filtros-grid">
+              <div className="form-group">
+                <label htmlFor="selectEstado"><i className="fas fa-map-marker-alt"></i> Estado (UF)</label>
+                <select
+                  id="selectEstado"
+                  className="form-control"
+                  value={filtroEstado}
+                  onChange={(e) => handleEstadoChange(e.target.value)}
+                >
+                  <option value="todos">Todos os Estados</option>
+                  {todasUFs.map((ufSigla) => (
+                    <option key={ufSigla} value={ufSigla}>
+                      {NOME_ESTADOS[ufSigla] || ufSigla}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="selectProjeto"><i className="fas fa-file-contract"></i> Projeto (Contrato)</label>
+                <select
+                  id="selectProjeto"
+                  className="form-control"
+                  value={codigoAlmox}
+                  onChange={(e) => handleAlmoxChange(e.target.value)}
+                >
+                  <option value="">Selecione o contrato...</option>
+                  <option value="todos">Todos os projetos</option>
+                  {projetosFiltrados.map((a) => (
+                    <option key={a.codigo} value={a.codigo}>{a.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="selectClasse"><i className="fas fa-tags"></i> Classificação (ABC)</label>
+                <select
+                  id="selectClasse"
+                  className="form-control"
+                  value={filtroClasse}
+                  onChange={(e) => setFiltroClasse(e.target.value)}
+                >
+                  <option value="todas">Todas as Classes</option>
+                  <option value="A">Classe A</option>
+                  <option value="B">Classe B</option>
+                  <option value="C">Classe C</option>
+                </select>
+              </div>
+              {codigoAlmox && (
+                <>
+                  <div className="form-group" id="grupoFiltroCidade">
+                    <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
+                    <select
+                      id="cidadeFilter"
+                      className="form-control"
+                      value={state.filtros.grupo}
+                      onChange={(e) => setFiltroGrupo(e.target.value)}
+                    >
+                      <option value="todas">Todas as cidades</option>
+                      {Array.from(new Set(materiaisDoEstado.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
+                        <option key={cityName} value={cityName}>{cityName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" id="grupoTipo">
+                    <label htmlFor="tipoFilter"><i className="fas fa-tags"></i> Tipo de Material</label>
+                    <select
+                      id="tipoFilter"
+                      className="form-control"
+                      value={state.filtros.tipo}
+                      onChange={(e) => setFiltroTipo(e.target.value)}
+                    >
+                      <option value="todos">Todos os materiais</option>
+                      {Array.from(new Set(state.materiais.map((m) => m.descricao))).filter(Boolean).sort().map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="form-group">
-              <label htmlFor="selectProjeto"><i className="fas fa-file-contract"></i> Projeto (Contrato)</label>
-              <select
-                id="selectProjeto"
-                className="form-control"
-                value={codigoAlmox}
-                onChange={(e) => handleAlmoxChange(e.target.value)}
-              >
-                <option value="">Selecione o contrato...</option>
-                <option value="todos">Todos os projetos</option>
-                {projetosFiltrados.map((a) => (
-                  <option key={a.codigo} value={a.codigo}>{a.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="selectClasse"><i className="fas fa-tags"></i> Classificação (ABC)</label>
-              <select
-                id="selectClasse"
-                className="form-control"
-                value={filtroClasse}
-                onChange={(e) => setFiltroClasse(e.target.value)}
-              >
-                <option value="todas">Todas as Classes</option>
-                <option value="A">Classe A</option>
-                <option value="B">Classe B</option>
-                <option value="C">Classe C</option>
-              </select>
-            </div>
-            {codigoAlmox && (
-              <>
-                <div className="form-group" id="grupoFiltroCidade">
-                  <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
-                  <select
-                    id="cidadeFilter"
-                    className="form-control"
-                    value={state.filtros.grupo}
-                    onChange={(e) => setFiltroGrupo(e.target.value)}
-                  >
-                    <option value="todas">Todas as cidades</option>
-                    {Array.from(new Set(materiaisDoEstado.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
-                      <option key={cityName} value={cityName}>{cityName}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group" id="grupoTipo">
-                  <label htmlFor="tipoFilter"><i className="fas fa-tags"></i> Tipo de Material</label>
-                  <select
-                    id="tipoFilter"
-                    className="form-control"
-                    value={state.filtros.tipo}
-                    onChange={(e) => setFiltroTipo(e.target.value)}
-                  >
-                    <option value="todos">Todos os materiais</option>
-                    {Array.from(new Set(state.materiais.map((m) => m.descricao))).filter(Boolean).sort().map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Área de Conteúdo */}
         <div id="abaConteudo" className="tab-content-area">
-          {!codigoAlmox ? (
+          {state.abaAtiva === 'upload' ? (
+            <TabUpload 
+              onVoltar={() => setAba(abaAnterior)}
+              onUploadSuccess={async () => {
+                if (codigoAlmox) {
+                  await carregarMateriais(codigoAlmox);
+                }
+              }}
+            />
+          ) : !codigoAlmox ? (
             <div className="empty-state-container animate-fade-in">
               <div className="empty-state-icon">
                 <i className="fas fa-warehouse bounce-slow"></i>
@@ -468,11 +499,6 @@ export default function AppScreen({
                 <TabMonitoramento 
                   materiais={materiaisFiltrados} 
                   contagens={state.contagens}
-                  onUploadSuccess={async () => {
-                    if (codigoAlmox) {
-                      await carregarMateriais(codigoAlmox);
-                    }
-                  }}
                 />
               )}
             </>
