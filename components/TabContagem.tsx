@@ -155,6 +155,7 @@ export default function TabContagem({
               {(
                 [
                   { col: 'origem', label: 'Origem' },
+                  { col: 'codmat', label: 'Código Mat.' },
                   { col: 'descricao', label: 'Descrição' },
                   { col: 'unidade', label: 'UN' },
                   ...(perfil !== 'contagem' ? [{ col: 'saldoAtual', label: 'Saldo Sistema' }] : []),
@@ -175,7 +176,7 @@ export default function TabContagem({
           <tbody>
             {materiaisVisiveis.length === 0 ? (
               <tr>
-                <td colSpan={perfil === 'contagem' ? 5 : 7} className="text-center py-4 text-muted">Nenhum material encontrado.</td>
+                <td colSpan={perfil === 'contagem' ? 6 : 9} className="text-center py-4 text-muted">Nenhum material encontrado.</td>
               </tr>
             ) : (
               materiaisVisiveis.map((m) => (
@@ -264,6 +265,7 @@ function MaterialRow({ material: m, contagem, onRegistrar, perfil }: MaterialRow
   return (
     <tr data-id={m.id} className={isEditado ? 'linha-editada' : ''}>
       <td><strong>{sanitizarTexto(m.origem)}</strong></td>
+      <td><span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600 }}>{m.codmat}</span></td>
       <td title={m.descricao}>{truncarTexto(m.descricao, 35)}</td>
       <td><span className="badge-unidade">{sanitizarTexto(m.unidade)}</span></td>
       {perfil !== 'contagem' && <td><span className={`badge ${badgeClass}`}>{m.saldoAtual}</span></td>}
