@@ -150,8 +150,10 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Volume de Itens</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{totalItens}</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Materiais selecionados</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>
+              {totalItens} / {materiais.filter((m) => m.id in contagens).length}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Volume de itens / itens auditados</span>
           </div>
           <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
             <i className="fas fa-barcode"></i>
