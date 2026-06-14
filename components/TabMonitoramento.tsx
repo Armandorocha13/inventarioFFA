@@ -20,14 +20,23 @@ interface TabMonitoramentoProps {
 export default function TabMonitoramento({ materiais, contagens }: TabMonitoramentoProps) {
   const [divergenciasAbertas, setDivergenciasAbertas] = useState(false);
 
+  const materiaisComFisico = materiais.map((m) => {
+    const physical = m.id in contagens ? contagens[m.id].novaQtd : 0;
+    const desvio = physical - m.saldoAtual;
+    const preco = m.precoUnitario || 0;
+    const impacto = desvio * preco;
+    return { ...m, physical, desvio, impacto };
+  });
+
   const totalItens = materiais.length;
   const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.saldoAtual * (m.precoUnitario || 0), 0);
 
-  const acuracidadeStats = calcularAcuracidade(materiais, contagens);
-  const { divergentes: totalDivergentes, taxaAcuracidade, contados: totalContados } = acuracidadeStats;
+  const totalDivergentes = materiaisComFisico.filter((m) => m.desvio !== 0).length;
+  const acertos = materiaisComFisico.filter((m) => m.desvio === 0).length;
+  const taxaAcuracidade = totalItens > 0 ? Math.round((acertos / totalItens) * 100) : 100;
+  const totalContados = totalItens;
 
-  const financeiro = calcularFinanceiroDivergencias(materiais, contagens);
-  const { resultadoLiquido } = financeiro;
+  const resultadoLiquido = materiaisComFisico.reduce((acc, m) => acc + m.impacto, 0);
 
 
 
@@ -207,8 +216,12 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
               }, {} as Record<string, Material[]>)
             )
             .map(([cidade, mats]) => {
-              const stats = calcularAcuracidade(mats, contagens);
-              return { cidade, taxa: stats.taxaAcuracidade, contados: stats.contados };
+              const acertosCidade = mats.filter((m) => {
+                const physical = m.id in contagens ? contagens[m.id].novaQtd : 0;
+                return physical === m.saldoAtual;
+              }).length;
+              const taxa = mats.length > 0 ? Math.round((acertosCidade / mats.length) * 100) : 100;
+              return { cidade, taxa, contados: mats.length };
             })
             .sort((a, b) => b.contados - a.contados || b.taxa - a.taxa || a.cidade.localeCompare(b.cidade));
 
