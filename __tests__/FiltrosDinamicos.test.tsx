@@ -89,6 +89,33 @@ describe('Filtros Dinâmicos na AppScreen', () => {
     expect(container.querySelector('#selectAuditado')).toBeInTheDocument();
   });
 
+  it('não deve renderizar o seletor de Auditados no painel de contagem', () => {
+    const mockInventarioContagem = {
+      ...mockInventario,
+      state: {
+        ...mockInventario.state,
+        abaAtiva: 'contagem',
+      },
+    };
+
+    const { container } = render(
+      <AppScreen
+        uf="todos"
+        almoxarifados={mockAlmoxarifados}
+        todos={mockTodos}
+        inventario={mockInventarioContagem as any}
+        perfil="contagem"
+        onVoltarLanding={vi.fn()}
+        toast={vi.fn()}
+      />
+    );
+
+    expect(container.querySelector('#selectEstado')).toBeInTheDocument();
+    expect(container.querySelector('#selectProjeto')).toBeInTheDocument();
+    expect(container.querySelector('#selectClasse')).toBeInTheDocument();
+    expect(container.querySelector('#selectAuditado')).not.toBeInTheDocument();
+  });
+
   it('deve filtrar os materiais por status auditado (sim/nao)', async () => {
     const mockInventarioAuditado = {
       ...mockInventario,

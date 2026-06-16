@@ -256,11 +256,13 @@ export default function AppScreen({
     }
 
     // 2. Filter by Auditado (sim/nao)
-    const foiAuditado = m.id in state.contagens;
-    if (filtroAuditado === 'sim') {
-      if (!foiAuditado) return false;
-    } else if (filtroAuditado === 'nao') {
-      if (foiAuditado) return false;
+    if (state.abaAtiva === 'monitoramento') {
+      const foiAuditado = m.id in state.contagens;
+      if (filtroAuditado === 'sim') {
+        if (!foiAuditado) return false;
+      } else if (filtroAuditado === 'nao') {
+        if (foiAuditado) return false;
+      }
     }
 
     return true;
@@ -285,10 +287,24 @@ export default function AppScreen({
     else mapClasseABC.set(m.id, 'C');
   });
 
-  const materiaisFiltrados = materiaisBase.map(m => ({
+  const materiaisComClasse = materiaisBase.map(m => ({
     ...m,
     classeABC: mapClasseABC.get(m.id) || 'C'
-  })).filter((m) => {
+  }));
+
+  // De-duplica por codmat na exibição: mantém apenas o de maior valor de estoque
+  const maiorPorCodmat = new Map<string, any>();
+  for (const item of materiaisComClasse) {
+    const key = item.codmat ?? String(item.id);
+    const valorEstoque = (item.saldoAtual || 0) * (item.precoUnitario || 0);
+    const existente = maiorPorCodmat.get(key);
+    if (!existente || valorEstoque > (existente.saldoAtual || 0) * (existente.precoUnitario || 0)) {
+      maiorPorCodmat.set(key, item);
+    }
+  }
+  const materiaisUnicos = Array.from(maiorPorCodmat.values());
+
+  const materiaisFiltrados = materiaisUnicos.filter((m) => {
     // 2. Filter by Classificação
     if (filtroClasse !== 'todas') {
       return m.classeABC === filtroClasse.toUpperCase();
@@ -424,19 +440,21 @@ export default function AppScreen({
                   <option value="C">Classe C</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label htmlFor="selectAuditado"><i className="fas fa-clipboard-check"></i> Apenas Auditados</label>
-                <select
-                  id="selectAuditado"
-                  className="form-control"
-                  value={filtroAuditado}
-                  onChange={(e) => setFiltroAuditado(e.target.value as any)}
-                >
-                  <option value="todos">Todos</option>
-                  <option value="sim">Sim</option>
-                  <option value="nao">Não</option>
-                </select>
-              </div>
+              {state.abaAtiva === 'monitoramento' && (
+                <div className="form-group">
+                  <label htmlFor="selectAuditado"><i className="fas fa-clipboard-check"></i> Apenas Auditados</label>
+                  <select
+                    id="selectAuditado"
+                    className="form-control"
+                    value={filtroAuditado}
+                    onChange={(e) => setFiltroAuditado(e.target.value as any)}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </div>
+              )}
               {codigoAlmox && (
                 <>
                   <div className="form-group" id="grupoFiltroCidade">

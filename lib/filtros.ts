@@ -27,6 +27,10 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "SSO RJ": "RIO DE JANEIRO",
   "REG. RJ": "RIO DE JANEIRO",
   "REG.RJ": "RIO DE JANEIRO",
+  // Teresópolis
+  "CLARO TERESOPOLIS": "TERESOPOLIS",
+  "SEG TERESOPOLIS": "TERESOPOLIS",
+  "TERESOPOLIS": "TERESOPOLIS",
   // Nova Friburgo — "FERRAM. CLARO IAT" é o nome do grupo contrato 21 para Friburgo
   "FERRAM.CLARO IAT": "NOVA FRIBURGO",
   "FRIBURGO": "NOVA FRIBURGO",

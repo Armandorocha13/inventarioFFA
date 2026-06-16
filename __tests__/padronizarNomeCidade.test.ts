@@ -8,6 +8,8 @@ describe('padronizarNomeCidade', () => {
     expect(padronizarNomeCidade('21/CLARO PETROPOLIS')).toBe('PETROPOLIS');
     expect(padronizarNomeCidade('21/FERRAM. NITERÓI')).toBe('NITEROI');
     expect(padronizarNomeCidade('21/FERRAMENTARIA CPS')).toBe('CAMPOS');
+    expect(padronizarNomeCidade('21/CLARO TERESOPOLIS')).toBe('TERESOPOLIS');
+    expect(padronizarNomeCidade('41/SEG TERESÓPOLIS')).toBe('TERESOPOLIS');
   });
 
   it('deve mapear aliases específicos', () => {

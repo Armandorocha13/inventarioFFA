@@ -15,11 +15,10 @@ interface TabCurvaABCProps {
 
 export default function TabCurvaABC({ materiais, contagens }: TabCurvaABCProps) {
   const abc = classificarCurvaABC(materiais, contagens);
-  const totalItens = materiais.length;
-
   const totalA = abc.classes.A.length;
   const totalB = abc.classes.B.length;
   const totalC = abc.classes.C.length;
+  const totalItens = totalA + totalB + totalC;
 
   const pctA = totalItens > 0 ? Math.round((totalA / totalItens) * 100) : 0;
   const pctB = totalItens > 0 ? Math.round((totalB / totalItens) * 100) : 0;

@@ -38,6 +38,14 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
   const resultadoLiquido = materiaisComFisico.reduce((acc, m) => acc + m.impacto, 0);
 
+  // Divergências positivas (saldo físico > sistêmico) e negativas (saldo físico < sistêmico)
+  const positivos = materiaisComFisico.filter((m) => m.id in contagens && m.desvio > 0);
+  const negativos = materiaisComFisico.filter((m) => m.id in contagens && m.desvio < 0);
+  const totalPositivos = positivos.length;
+  const totalNegativos = negativos.length;
+  const valorPositivos = positivos.reduce((acc, m) => acc + m.impacto, 0);
+  const valorNegativos = negativos.reduce((acc, m) => acc + m.impacto, 0);
+
 
 
 
@@ -135,51 +143,63 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
   return (
     <div>
-      <div className="stats-container animate-fade-in">
-        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Patrimônio Total</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>{formatarMoeda(valorTotalEstoque)}</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Valoração total sob gestão</span>
+      <div className="stats-container animate-fade-in" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '1rem' }}>
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Patrimônio Total</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatarMoeda(valorTotalEstoque)}</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Valoração total sob gestão</span>
           </div>
-          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, marginLeft: '0.5rem' }}>
             <i className="fas fa-boxes"></i>
           </div>
         </div>
 
-        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Volume de Itens</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Volume de Itens</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap' }}>
               {totalItens} / {materiais.filter((m) => m.id in contagens).length}
             </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Volume de itens / itens auditados</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Itens totais / auditados</span>
           </div>
-          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(107, 114, 128, 0.08)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, marginLeft: '0.5rem' }}>
             <i className="fas fa-barcode"></i>
           </div>
         </div>
 
-        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Divergências</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: totalDivergentes > 0 ? 'var(--warning)' : 'var(--text-main)', fontFamily: 'Quicksand, sans-serif' }}>
-              {totalContados} / {totalDivergentes}
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Itens auditados / com divergência</span>
+        {/* KPI: Negativos Totais */}
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Negativos Totais</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--danger)', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatarMoeda(valorNegativos)}</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Falta total em estoque</span>
           </div>
-          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: totalDivergentes > 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: totalDivergentes > 0 ? '#d97706' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
-            <i className="fas fa-exclamation-triangle"></i>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, marginLeft: '0.5rem' }}>
+            <i className="fas fa-arrow-trend-down"></i>
           </div>
         </div>
 
-        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Impacto Líquido</span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: getImpactoColor(resultadoLiquido), fontFamily: 'Quicksand, sans-serif' }}>{formatarMoeda(resultadoLiquido)}</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Saldo das divergências</span>
+        {/* KPI: Positivos Totais */}
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid rgba(22, 163, 74, 0.25)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Positivos Totais</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success)', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatarMoeda(valorPositivos)}</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Sobra total em estoque</span>
           </div>
-          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: resultadoLiquido < 0 ? 'rgba(239, 68, 68, 0.08)' : resultadoLiquido > 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: resultadoLiquido < 0 ? 'var(--danger)' : resultadoLiquido > 0 ? 'var(--success)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(22, 163, 74, 0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, marginLeft: '0.5rem' }}>
+            <i className="fas fa-arrow-trend-up"></i>
+          </div>
+        </div>
+
+        {/* KPI: Impacto Líquido */}
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', textAlign: 'left', background: 'var(--glass-bg-strong)', border: '1px solid var(--glass-border)', borderRadius: '12px', boxShadow: 'var(--shadow-sm)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Impacto Líquido</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: getImpactoColor(resultadoLiquido), fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatarMoeda(resultadoLiquido)}</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Saldo das divergências</span>
+          </div>
+          <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: resultadoLiquido < 0 ? 'rgba(239, 68, 68, 0.08)' : resultadoLiquido > 0 ? 'rgba(22, 163, 74, 0.08)' : 'rgba(107, 114, 128, 0.08)', color: resultadoLiquido < 0 ? 'var(--danger)' : resultadoLiquido > 0 ? 'var(--success)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, marginLeft: '0.5rem' }}>
             <i className="fas fa-coins"></i>
           </div>
         </div>

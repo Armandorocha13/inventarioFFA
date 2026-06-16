@@ -210,7 +210,19 @@ export function classificarCurvaABC(
   const valorTotalEstoque = itensComValor.reduce((acc, i) => acc + i.valorEstoque, 0);
   const classes: CurvaABCResult['classes'] = { A: [], B: [], C: [] };
 
-  itensComValor.forEach((item) => {
+  // De-duplica por codmat: mantém apenas o item de maior valorEstoque por codmat.
+  // A classeABC já atribuída ao item vencedor determina em qual classe ele aparece.
+  const maiorPorCodmat = new Map<string, MaterialComValor>();
+  for (const item of itensComValor) {
+    const key = item.codmat ?? String(item.id);
+    const existente = maiorPorCodmat.get(key);
+    if (!existente || item.valorEstoque > existente.valorEstoque) {
+      maiorPorCodmat.set(key, item);
+    }
+  }
+  const itensUnicos = Array.from(maiorPorCodmat.values());
+
+  itensUnicos.forEach((item) => {
     const cls = (item.classeABC || 'C').toUpperCase();
     if (cls === 'A') {
       classes.A.push(item);

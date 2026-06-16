@@ -11,7 +11,7 @@ const sampleMaterial = (id: number, saldoAtual: number): Material => ({
   saldoAtual,
   precoUnitario: 10,
   ultimaAtualizacao: '2026-06-08',
-});
+}); 
 
 describe('calcularAcuracidade', () => {
   it('should return 100% accuracy when all counted items match perfectly', () => {
