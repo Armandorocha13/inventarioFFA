@@ -292,19 +292,7 @@ export default function AppScreen({
     classeABC: mapClasseABC.get(m.id) || 'C'
   }));
 
-  // De-duplica por codmat na exibição: mantém apenas o de maior valor de estoque
-  const maiorPorCodmat = new Map<string, any>();
-  for (const item of materiaisComClasse) {
-    const key = item.codmat ?? String(item.id);
-    const valorEstoque = (item.saldoAtual || 0) * (item.precoUnitario || 0);
-    const existente = maiorPorCodmat.get(key);
-    if (!existente || valorEstoque > (existente.saldoAtual || 0) * (existente.precoUnitario || 0)) {
-      maiorPorCodmat.set(key, item);
-    }
-  }
-  const materiaisUnicos = Array.from(maiorPorCodmat.values());
-
-  const materiaisFiltrados = materiaisUnicos.filter((m) => {
+  const materiaisFiltrados = materiaisComClasse.filter((m) => {
     // 2. Filter by Classificação
     if (filtroClasse !== 'todas') {
       return m.classeABC === filtroClasse.toUpperCase();
