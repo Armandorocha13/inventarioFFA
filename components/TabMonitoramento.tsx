@@ -128,6 +128,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     }
 
     const dados = materiaisFiltrados.map((item, i) => {
+      const acuraciaValor = (item.precoUnitario || 0) * Math.min(item.saldoAtual || 0, item.fisico || 0);
       return {
         '#': i + 1,
         'UF': item.uf || '—',
@@ -141,6 +142,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
         'Preço Unitário': item.precoUnitario,
         'Total Sistêmico (R$)': item.valorEstoque,
         'Total Físico (R$)': item.totalFisico,
+        'Acurácia (R$)': acuraciaValor,
         'Diferença Final (R$)': item.totalFinal,
       };
     });
@@ -384,11 +386,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                 <th>Preço Unit.</th>
                 <th>Total Sist.</th>
                 <th>Total Fís.</th>
+                <th>Acurácia (R$)</th>
                 <th>Total Final</th>
               </tr>
             </thead>
             <tbody>
               {materiaisFiltrados.map((item, i) => {
+                const acuraciaValor = (item.precoUnitario || 0) * Math.min(item.saldoAtual || 0, item.fisico || 0);
                 return (
                   <tr key={`${item.descricao}||${item.cidade}||${item.uf}||${item.contrato || ''}||${item.grupo || ''}`}>
                     <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)', padding: '2px 5px', fontSize: '0.6rem' }}>#{i + 1}</span></td>
@@ -418,6 +422,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                     <td>{formatarMoeda(item.precoUnitario)}</td>
                     <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
                     <td style={{ fontWeight: 600 }}>{formatarMoeda(item.totalFisico)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatarMoeda(acuraciaValor)}</td>
                     <td style={{ fontWeight: 600, color: getImpactoColor(item.totalFinal) }}>
                       {formatarMoeda(item.totalFinal)}
                     </td>
@@ -433,6 +438,9 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                 </td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
                   {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + item.totalFisico, 0))}
+                </td>
+                <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                  {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + ((item.precoUnitario || 0) * Math.min(item.saldoAtual || 0, item.fisico || 0)), 0))}
                 </td>
                 <td style={{ fontWeight: 800, color: getImpactoColor(materiaisFiltrados.reduce((acc, item) => acc + item.totalFinal, 0)) }}>
                   {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + item.totalFinal, 0))}
