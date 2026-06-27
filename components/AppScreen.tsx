@@ -127,17 +127,35 @@ export default function AppScreen({
       })
   )).sort();
 
-  // 2. Projeto options: projects belonging to the selected state (Estado)
+  // 2. Projeto options: projects belonging to the selected state (Estado) and selected city (Cidade)
   const baseProjetos = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
   const projetosFiltrados = baseProjetos.filter(projOpt => {
-    if (filtroEstado === 'todos') return true;
-    let contractUf = 'RJ';
-    const cityUpper = (projOpt.cidade || '').toUpperCase();
-    if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
-    else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
-    else if (cityUpper === 'CURITIBA') contractUf = 'PR';
-    else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
-    return contractUf === filtroEstado;
+    // Filter by Estado
+    if (filtroEstado !== 'todos') {
+      let contractUf = 'RJ';
+      const cityUpper = (projOpt.cidade || '').toUpperCase();
+      if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
+      else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
+      else if (cityUpper === 'CURITIBA') contractUf = 'PR';
+      else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+      if (contractUf !== filtroEstado) return false;
+    }
+
+    // Filter by Cidade
+    const selectedCidade = state.filtros.grupo;
+    if (selectedCidade && selectedCidade !== 'todas') {
+      const projCityNorm = (projOpt.cidade || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const selCityNorm = selectedCidade.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+      // Equivalent check (Vitória / Espírito Santo)
+      const matchCity = projCityNorm === selCityNorm || 
+                        (projCityNorm === 'ESPIRITO SANTO' && selCityNorm === 'VITORIA') ||
+                        (projCityNorm === 'VITORIA' && selCityNorm === 'ESPIRITO SANTO');
+
+      if (!matchCity) return false;
+    }
+
+    return true;
   });
 
   // 3. Classe options: static classes present in the loaded dataset
