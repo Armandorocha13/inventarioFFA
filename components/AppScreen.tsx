@@ -225,6 +225,8 @@ export default function AppScreen({
 
   const handleAlmoxChange = useCallback(async (codigo: string) => {
     setCodigoAlmox(codigo);
+    setFiltroGrupo('todas');
+    setFiltroTipo('todos');
     if (!codigo) return;
     try {
       let cidadesValidas: string[] | undefined = undefined;
@@ -249,43 +251,7 @@ export default function AppScreen({
     } catch {
       toast('Falha ao conectar com o banco Neon.', 'erro');
     }
-  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil]);
-
-  // Resets for invalid filter selections when options list changes
-  useEffect(() => {
-    if (filtroEstado !== 'todos' && !ufsDisponiveis.includes(filtroEstado)) {
-      setFiltroEstado('todos');
-    }
-  }, [ufsDisponiveis, filtroEstado]);
-
-  useEffect(() => {
-    if (codigoAlmox && codigoAlmox !== 'todos') {
-      const exists = projetosFiltrados.some(p => p.codigo === codigoAlmox);
-      if (!exists) {
-        handleAlmoxChange('todos');
-      }
-    }
-  }, [projetosFiltrados, codigoAlmox, handleAlmoxChange]);
-
-  useEffect(() => {
-    const selectedCidade = state.filtros.grupo;
-    if (selectedCidade && selectedCidade !== 'todas' && !cidadesDisponiveis.includes(selectedCidade)) {
-      setFiltroGrupo('todas');
-    }
-  }, [cidadesDisponiveis, state.filtros.grupo, setFiltroGrupo]);
-
-  useEffect(() => {
-    const selectedTipo = state.filtros.tipo;
-    if (selectedTipo && selectedTipo !== 'todos' && !tiposDisponiveis.includes(selectedTipo)) {
-      setFiltroTipo('todos');
-    }
-  }, [tiposDisponiveis, state.filtros.tipo, setFiltroTipo]);
-
-  useEffect(() => {
-    if (filtroClasse !== 'todas' && !classesDisponiveis.includes(filtroClasse.toUpperCase())) {
-      setFiltroClasse('todas');
-    }
-  }, [classesDisponiveis, filtroClasse]);
+  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil, setFiltroGrupo, setFiltroTipo]);
 
   // Entrar direto se for Monitoramento (após handleAlmoxChange estar definido).
   // Carregamento de dados na montagem — o setState (via handleAlmoxChange) é
@@ -300,6 +266,7 @@ export default function AppScreen({
   const handleEstadoChange = useCallback((estado: string) => {
     setFiltroEstado(estado);
     setFiltroGrupo('todas'); // Reset city/group filter on state change
+    setFiltroTipo('todos');  // Reset type filter on state change
     
     // Reset selected contract if it does not belong to the selected state
     if (estado !== 'todos' && codigoAlmox !== 'todos' && codigoAlmox !== '') {
@@ -317,7 +284,12 @@ export default function AppScreen({
         }
       }
     }
-  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange, setFiltroGrupo]);
+  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange, setFiltroGrupo, setFiltroTipo]);
+
+  const handleCidadeChange = useCallback((cidade: string) => {
+    setFiltroGrupo(cidade);
+    setFiltroTipo('todos'); // Reset type filter on city change
+  }, [setFiltroGrupo, setFiltroTipo]);
 
   const handleSalvarContagens = useCallback(async () => {
     setSalvando(true);
@@ -542,7 +514,7 @@ export default function AppScreen({
                       id="cidadeFilter"
                       className="form-control"
                       value={state.filtros.grupo}
-                      onChange={(e) => setFiltroGrupo(e.target.value)}
+                      onChange={(e) => handleCidadeChange(e.target.value)}
                     >
                       <option value="todas">Todas as cidades</option>
                       {cidadesDisponiveis.map((cityName) => (
