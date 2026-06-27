@@ -209,8 +209,12 @@ export default function TabContagem({
           <button className="btn btn-secondary btn-excel" onClick={exportarExcel}>
             <i className="fas fa-file-excel"></i> Exportar
           </button>
-          {perfil === 'contagem' && codigoAlmox && codigoAlmox !== 'todos' && (
-            <button className="btn btn-secondary btn-excel" onClick={onAbrirModalAddExtra} style={{ background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+          {perfil === 'contagem' && onAbrirModalAddExtra && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => onAbrirModalAddExtra()}
+              style={{ background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
               <i className="fas fa-plus"></i> Item Extra
             </button>
           )}

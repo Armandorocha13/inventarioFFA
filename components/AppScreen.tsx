@@ -370,7 +370,6 @@ export default function AppScreen({
     unidade: string;
     quantidade: number;
     precoUnitario: number;
-    classeABC: string;
   }) => {
     // Parse origin and contrato from codigoAlmox  (format: CIDADE|CONTRATO|PROJETO or CIDADE|CONTRATO)
     const parts = codigoAlmox.split('|');

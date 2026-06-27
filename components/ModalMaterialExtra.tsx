@@ -9,7 +9,6 @@ interface ModalMaterialExtraProps {
     unidade: string;
     quantidade: number;
     precoUnitario: number;
-    classeABC: string;
   }) => Promise<void>;
   onCancelar: () => void;
 }
@@ -20,7 +19,6 @@ export default function ModalMaterialExtra({ onConfirmar, onCancelar }: ModalMat
   const [unidade, setUnidade] = useState('PÇ');
   const [precoUnitario, setPrecoUnitario] = useState(0);
   const [quantidade, setQuantidade] = useState<number | ''>('');
-  const [classeABC, setClasseABC] = useState('C');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -39,7 +37,6 @@ export default function ModalMaterialExtra({ onConfirmar, onCancelar }: ModalMat
         unidade: unidade.trim().toUpperCase(),
         quantidade: Number(quantidade),
         precoUnitario: Number(precoUnitario),
-        classeABC,
       });
     } catch (err: any) {
       setErro(err.message || 'Erro ao adicionar item.');
@@ -49,7 +46,7 @@ export default function ModalMaterialExtra({ onConfirmar, onCancelar }: ModalMat
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1100 }}>
+    <div className="modal-overlay" style={{ zIndex: 1100, display: 'flex' }}>
       <div className="modal-content animate-scale-in" style={{ maxWidth: '480px', padding: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
@@ -116,7 +113,7 @@ export default function ModalMaterialExtra({ onConfirmar, onCancelar }: ModalMat
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.88rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.88rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 700 }}>Qtd. Física *</label>
               <input
@@ -126,18 +123,6 @@ export default function ModalMaterialExtra({ onConfirmar, onCancelar }: ModalMat
                 onChange={(e) => setQuantidade(e.target.value === '' ? '' : Number(e.target.value))}
                 required
               />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 700 }}>Curva ABC</label>
-              <select
-                className="form-control"
-                value={classeABC}
-                onChange={(e) => setClasseABC(e.target.value)}
-              >
-                <option value="A">Classe A</option>
-                <option value="B">Classe B</option>
-                <option value="C">Classe C</option>
-              </select>
             </div>
           </div>
 
