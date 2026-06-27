@@ -129,17 +129,23 @@ export default function AppScreen({
       })
   )).sort();
 
+  // Helper: mapeia cidade do projeto para sua UF (mesma lógica de matchEstado)
+  const cidadeParaUF = (cidade: string): string => {
+    const c = (cidade || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (c === 'ESPIRITO SANTO' || c === 'VITORIA') return 'ES';
+    if (c === 'SAO PAULO' || c === 'SANTOS') return 'SP';
+    if (c === 'CURITIBA') return 'PR';
+    if (['UBERLANDIA', 'VALADARES', 'BELO HORIZONTE', 'JUIZ DE FORA', 'VARGINHA', 'MINAS GERAIS'].includes(c)) return 'MG';
+    if (c === 'CAMPO GRANDE') return 'MS';
+    return 'RJ'; // default: RJ (inclui RIO DE JANEIRO, NOVA FRIBURGO, NITEROI, LAGOS, PETROPOLIS, etc.)
+  };
+
   // 2. Projeto options: projects belonging to the selected state (Estado) and selected city (Cidade)
   const baseProjetos = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
   const projetosFiltrados = baseProjetos.filter(projOpt => {
     // Filter by Estado
     if (filtroEstado !== 'todos') {
-      let contractUf = 'RJ';
-      const cityUpper = (projOpt.cidade || '').toUpperCase();
-      if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
-      else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
-      else if (cityUpper === 'CURITIBA') contractUf = 'PR';
-      else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+      const contractUf = cidadeParaUF(projOpt.cidade || '');
       if (contractUf !== filtroEstado) return false;
     }
 
@@ -295,11 +301,10 @@ export default function AppScreen({
     }
   }, [tiposDisponiveis, state.filtros.tipo, setFiltroTipo]);
 
-  // Entrar direto se for Monitoramento (após handleAlmoxChange estar definido).
-  // Carregamento de dados na montagem — o setState (via handleAlmoxChange) é
-  // intencional; o guard !codigoAlmox garante execução única.
+  // Auto-carrega todos os dados na montagem para monitoramento E contagem.
+  // O guard !codigoAlmox garante execução única.
   useEffect(() => {
-    if (perfil === 'monitoramento' && !codigoAlmox) {
+    if (!codigoAlmox) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       handleAlmoxChange('todos');
     }
@@ -314,12 +319,7 @@ export default function AppScreen({
       const base = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
       const selectAlmox = base.find((a) => a.codigo === codigoAlmox);
       if (selectAlmox) {
-        let contractUf = 'RJ';
-        const cityUpper = (selectAlmox.cidade || '').toUpperCase();
-        if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
-        else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
-        else if (cityUpper === 'CURITIBA') contractUf = 'PR';
-        else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+        const contractUf = cidadeParaUF(selectAlmox.cidade || '');
         if (contractUf !== estado) {
           handleAlmoxChange('todos');
         }
@@ -573,38 +573,34 @@ export default function AppScreen({
                   </select>
                 </div>
               )}
-              {codigoAlmox && (
-                <>
-                  <div className="form-group" id="grupoFiltroCidade">
-                    <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
-                    <select
-                      id="cidadeFilter"
-                      className="form-control"
-                      value={state.filtros.grupo}
-                      onChange={(e) => handleCidadeChange(e.target.value)}
-                    >
-                      <option value="todas">Todas as cidades</option>
-                      {cidadesDisponiveis.map((cityName) => (
-                        <option key={cityName} value={cityName}>{cityName}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group" id="grupoTipo">
-                    <label htmlFor="tipoFilter"><i className="fas fa-tags"></i> Tipo de Material</label>
-                    <select
-                      id="tipoFilter"
-                      className="form-control"
-                      value={state.filtros.tipo}
-                      onChange={(e) => setFiltroTipo(e.target.value)}
-                    >
-                      <option value="todos">Todos os materiais</option>
-                      {tiposDisponiveis.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
+              <div className="form-group" id="grupoFiltroCidade">
+                <label htmlFor="cidadeFilter"><i className="fas fa-map-marker-alt"></i> Cidade</label>
+                <select
+                  id="cidadeFilter"
+                  className="form-control"
+                  value={state.filtros.grupo}
+                  onChange={(e) => handleCidadeChange(e.target.value)}
+                >
+                  <option value="todas">Todas as cidades</option>
+                  {cidadesDisponiveis.map((cityName) => (
+                    <option key={cityName} value={cityName}>{cityName}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" id="grupoTipo">
+                <label htmlFor="tipoFilter"><i className="fas fa-tags"></i> Tipo de Material</label>
+                <select
+                  id="tipoFilter"
+                  className="form-control"
+                  value={state.filtros.tipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                >
+                  <option value="todos">Todos os materiais</option>
+                  {tiposDisponiveis.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
         )}
@@ -615,21 +611,9 @@ export default function AppScreen({
             <TabUpload 
               onVoltar={() => setAba(abaAnterior)}
               onUploadSuccess={async () => {
-                if (codigoAlmox) {
-                  await carregarMateriais(codigoAlmox);
-                }
+                await carregarMateriais(codigoAlmox || 'todos');
               }}
             />
-          ) : !codigoAlmox ? (
-            <div className="empty-state-container animate-fade-in">
-              <div className="empty-state-icon">
-                <i className="fas fa-warehouse bounce-slow"></i>
-              </div>
-              <h2 className="empty-state-title">Nenhum Contrato Selecionado</h2>
-              <p className="empty-state-text">
-                Selecione um contrato no painel de filtros acima para visualizar e auditar o estoque.
-              </p>
-            </div>
           ) : state.carregando ? (
             <div className="empty-state-container animate-fade-in">
               <div className="empty-state-icon">
