@@ -4,6 +4,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Módulos nativos não devem ser empacotados pelo bundler do servidor.
+  serverExternalPackages: ['better-sqlite3', 'pg'],
 };
 
 export default nextConfig;

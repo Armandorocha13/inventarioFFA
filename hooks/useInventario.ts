@@ -1,9 +1,13 @@
 'use client';
 
 import { useReducer, useCallback } from 'react';
-import type { Material, ContagensMap } from '@/lib/auxiliaresUI';
+import type { Material, ContagensMap } from '@/lib/domain/types';
+import type { ContagemInput } from '@/lib/domain/types';
 import { filtrarMateriais, ordenarPor } from '@/lib/filtros';
 import type { FiltroState } from '@/lib/filtros';
+
+// Material acrescido de campo temporário usado só no cálculo da Curva ABC.
+type MaterialABC = Material & { valorEstoqueTemp?: number };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -148,7 +152,7 @@ export function useInventario() {
       }
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      let materiais: any[] = await res.json();
+      let materiais: MaterialABC[] = await res.json();
       
       if (cidadesValidas && cidadesValidas.length > 0) {
         const normalizeStr = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
@@ -160,12 +164,12 @@ export function useInventario() {
       materiais.forEach((m) => {
         m.valorEstoqueTemp = (m.saldoAtual || 0) * (m.precoUnitario || 0);
       });
-      materiais.sort((a, b) => b.valorEstoqueTemp - a.valorEstoqueTemp);
-      const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.valorEstoqueTemp, 0);
+      materiais.sort((a, b) => (b.valorEstoqueTemp ?? 0) - (a.valorEstoqueTemp ?? 0));
+      const valorTotalEstoque = materiais.reduce((acc, m) => acc + (m.valorEstoqueTemp ?? 0), 0);
       
       let somaAcumulada = 0;
       materiais.forEach((m) => {
-        somaAcumulada += m.valorEstoqueTemp;
+        somaAcumulada += m.valorEstoqueTemp ?? 0;
         const percentual = valorTotalEstoque > 0 ? somaAcumulada / valorTotalEstoque : 0;
         
         if (percentual <= 0.8) {
@@ -210,7 +214,7 @@ export function useInventario() {
   const resetar = useCallback(() => dispatch({ type: 'RESETAR' }), []);
 
   const gravarContagens = useCallback(
-    async (contagens: Array<{ id: number; codmat: string; grupo?: string; descricao: string; valorAnterior: number | null; valorNovo: number; observacao?: string }>) => {
+    async (contagens: ContagemInput[]) => {
       const res = await fetch('/api/contagem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

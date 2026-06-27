@@ -70,14 +70,14 @@ describe('TabUpload Component', () => {
   });
 
   it('deve exibir overlay de processamento com a logo e barra de carregamento durante o upload', async () => {
-    let resolveFetch: any;
-    const fetchPromise = new Promise((resolve) => {
+    let resolveFetch!: () => void;
+    const fetchPromise = new Promise<Response>((resolve) => {
       resolveFetch = () => resolve({
         ok: true,
         json: async () => ({ success: true, insertedCount: 10, syncedCount: 5 })
-      });
+      } as Response);
     });
-    vi.spyOn(window, 'fetch').mockImplementation(() => fetchPromise as any);
+    vi.spyOn(window, 'fetch').mockImplementation(() => fetchPromise);
 
     render(<TabUpload onVoltar={vi.fn()} onUploadSuccess={vi.fn()} />);
 

@@ -4,7 +4,7 @@ import HomePage from '@/app/page'
 
 // Mocks dos sub-componentes para focar apenas no roteamento da page.tsx
 vi.mock('@/components/LandingScreen', () => ({
-  default: ({ onSelecionarUF }: any) => (
+  default: ({ onSelecionarUF }: { onSelecionarUF: (uf: string) => void }) => (
     <div data-testid="landing-screen">
       <button onClick={() => onSelecionarUF('SP')}>Selecionar SP</button>
     </div>
@@ -12,7 +12,7 @@ vi.mock('@/components/LandingScreen', () => ({
 }))
 
 vi.mock('@/components/AppScreen', () => ({
-  default: ({ perfil, uf }: any) => (
+  default: ({ perfil, uf }: { perfil: string | null; uf: string }) => (
     <div data-testid="app-screen">
       App Screen (Perfil: {perfil}, UF: {uf})
     </div>

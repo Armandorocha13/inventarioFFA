@@ -8,7 +8,7 @@ import TabUpload from './TabUpload';
 import ModalConfirmacao from './ModalConfirmacao';
 import type { useInventario } from '@/hooks/useInventario';
 import type { AbaAtiva } from '@/hooks/useInventario';
-import type { Material } from '@/lib/auxiliaresUI';
+import type { ContagensMap } from '@/lib/domain/types';
 import { padronizarNomeCidade } from '@/lib/filtros';
 
 interface Almoxarifado {
@@ -39,7 +39,7 @@ export default function AppScreen({
   onVoltarLanding,
   toast,
 }: AppScreenProps) {
-  const { state, setAba, carregarMateriais, registrarContagem, restaurarContagens, setFiltroTermo, setFiltroTipo, setFiltroGrupo, ordenarColuna, gravarContagens } = inventario;
+  const { state, setAba, carregarMateriais, registrarContagem, restaurarContagens, setFiltroTipo, setFiltroGrupo, ordenarColuna, gravarContagens } = inventario;
   const [codigoAlmox, setCodigoAlmox] = useState('');
   const [abaAnterior, setAbaAnterior] = useState<AbaAtiva>('monitoramento');
   const [modalAberto, setModalAberto] = useState(false);
@@ -84,13 +84,6 @@ export default function AppScreen({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Entrar direto se for Monitoramento
-  useEffect(() => {
-    if (perfil === 'monitoramento' && !codigoAlmox) {
-      handleAlmoxChange('todos');
-    }
-  }, [perfil, codigoAlmox]);
-
   // Tema
   const alternarTema = useCallback(() => {
     setTema((t) => {
@@ -104,6 +97,10 @@ export default function AppScreen({
   useEffect(() => {
     const temaLocal = localStorage.getItem('sgi-tema') as 'claro' | 'escuro' | null;
     if (temaLocal) {
+      // Restaura o tema salvo após a montagem. O setState no effect é
+      // intencional: ler localStorage no estado inicial causaria mismatch
+      // de hidratação (o servidor não tem acesso ao localStorage).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTema(temaLocal);
       document.documentElement.setAttribute('data-tema', temaLocal);
     }
@@ -116,7 +113,7 @@ export default function AppScreen({
     return `sgi-draft-${almox}`;
   };
 
-  const salvarRascunho = useCallback((almox: string, contagens: typeof state.contagens) => {
+  const salvarRascunho = useCallback((almox: string, contagens: ContagensMap) => {
     const chave = getChaveRascunho(uf, almox);
     if (chave) localStorage.setItem(chave, JSON.stringify(contagens));
   }, [uf]);
@@ -158,7 +155,17 @@ export default function AppScreen({
     } catch {
       toast('Falha ao conectar com o banco Neon.', 'erro');
     }
-  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados]);
+  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil]);
+
+  // Entrar direto se for Monitoramento (após handleAlmoxChange estar definido).
+  // Carregamento de dados na montagem — o setState (via handleAlmoxChange) é
+  // intencional; o guard !codigoAlmox garante execução única.
+  useEffect(() => {
+    if (perfil === 'monitoramento' && !codigoAlmox) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleAlmoxChange('todos');
+    }
+  }, [perfil, codigoAlmox, handleAlmoxChange]);
 
   const handleEstadoChange = useCallback((estado: string) => {
     setFiltroEstado(estado);
@@ -216,15 +223,6 @@ export default function AppScreen({
   }, [state.contagens, state.materiais, gravarContagens, carregarMateriais, codigoAlmox, uf, toast]);
 
   const todasUFs = Object.keys(todos).sort();
-  const almoxsParaSelect: Almoxarifado[] =
-    uf === 'todos'
-      ? Object.values(todos).flat()
-      : almoxarifados;
-
-  const tabLabel = (aba: AbaAtiva) => {
-    if (aba === 'contagem') return 'Contagem Ativa';
-    return 'Painel de Monitoramento';
-  };
 
   // Filter raw materials by selected UF (Estado) first, to populate the city filter options dynamically
   const materiaisDoEstado = state.materiais.filter((m) => {
@@ -435,7 +433,7 @@ export default function AppScreen({
                     id="selectAuditado"
                     className="form-control"
                     value={filtroAuditado}
-                    onChange={(e) => setFiltroAuditado(e.target.value as any)}
+                    onChange={(e) => setFiltroAuditado(e.target.value as 'todos' | 'sim' | 'nao')}
                   >
                     <option value="todos">Todos</option>
                     <option value="sim">Sim</option>

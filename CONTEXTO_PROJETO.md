@@ -39,24 +39,38 @@ sistemaInventario/
 ├── app/                      ← páginas e rotas da API (App Router)
 │   ├── page.tsx              ← tela principal do inventário
 │   ├── layout.tsx            ← layout global com tema
-│   └── api/                  ← endpoints REST integrados
-│       ├── filtros/route.ts  ← busca UFs e Almoxarifados ativos
-│       ├── materiais/route.ts← lista materiais filtrados
-│       ├── contagem/route.ts ← salva contagem e atualiza saldos
-│       └── historico/route.ts← consulta histórico de auditorias
+│   └── api/                  ← endpoints REST (handlers HTTP finos)
+│       ├── filtros/route.ts  ← delega → filtros.service
+│       ├── materiais/route.ts← delega → materiais.service
+│       ├── contagem/route.ts ← delega → contagem.service
+│       ├── historico/route.ts← delega → historico.service
+│       └── upload-saldo/route.ts ← delega → upload.service
 │
 ├── components/               ← componentes reutilizáveis React (UI e modal)
 │   ├── ui/                   ← componentes base de UI
-│   ├── ConfirmModal.tsx      ← modal de confirmação de contagem
-│   ├── InventoryTable.tsx    ← tabela interativa com busca/ordenação
-│   └── HistoryTab.tsx        ← aba de monitoramento do histórico
+│   ├── ModalConfirmacao.tsx  ← modal de confirmação de contagem
+│   ├── TabContagem.tsx       ← tabela interativa com busca/ordenação
+│   └── TabMonitoramento.tsx  ← aba de monitoramento do histórico
 │
 ├── hooks/                    ← hooks personalizados para estado e lógica
 │   └── useInventario.ts      ← gerencia filtros, paginação, busca e mutações
 │
-├── lib/                      ← utilitários globais de conexão e dados
-│   ├── db.ts                 ← pool de conexões com o Neon DB
-│   └── utils.ts              ← funções auxiliares e helpers de estilo
+├── lib/                      ← núcleo de domínio, dados e utilitários
+│   ├── domain/types.ts       ← fonte única dos tipos de domínio
+│   ├── db/                   ← camada de acesso a dados
+│   │   ├── adapter.ts        ← contrato Db (query/transaction)
+│   │   ├── pg.ts             ← implementação Postgres (Neon)
+│   │   └── index.ts          ← seleciona a implementação ativa
+│   ├── services/            ← regras de negócio (SQL isolado das rotas)
+│   │   ├── filtros.service.ts
+│   │   ├── materiais.service.ts
+│   │   ├── contagem.service.ts
+│   │   ├── historico.service.ts
+│   │   └── upload.service.ts
+│   ├── auxiliaresUI.ts       ← funções puras de UI (formatação, ABC, acuracidade)
+│   ├── filtros.ts            ← filtro/ordenação e padronização de cidades
+│   ├── exportacao.ts         ← preparação de dados para Excel
+│   └── utils.ts              ← helpers de estilo (cn)
 │
 ├── docs/                     ← Documentação e Planilhas
 │   └── planilhas/            ← Arquivos Excel (.xlsx)
@@ -127,18 +141,47 @@ interface HistoricoRegistro {
 
 ---
 
+## 🗄️ Camada de Banco de Dados
+
+O acesso a dados é abstraído por um **adapter** (`lib/db/adapter.ts`) com duas
+implementações selecionadas em runtime (`lib/db/index.ts`):
+
+| Driver | Quando | Arquivo |
+|--------|--------|---------|
+| **SQLite** | desenvolvimento (sem `DATABASE_URL`) | `lib/db/sqlite.ts` |
+| **Postgres** | produção / `DATABASE_URL` presente | `lib/db/pg.ts` |
+
+Seleção: `DB_DRIVER=sqlite|pg` força explicitamente; sem ele, usa Postgres se
+`DATABASE_URL` existir, senão SQLite. Os *services* emitem SQL no dialeto
+Postgres; o adapter SQLite traduz os Postgres-ismos (`$N`, `ILIKE`, casts,
+`TRANSLATE`) para que o mesmo SQL rode nos dois bancos.
+
+**Schema** (canônico em `lib/db/migrations/*.sql`):
+`de_para_projeto`, `de_para_itens`, `saldo_estoque`, `progresso_contagem`,
+`historico_contagem` (tabela de auditoria real) e a view `vw_estoque_contagem`.
+
 ## ⚙️ Scripts npm
 
 ```bash
-npm run dev       # inicia o servidor de desenvolvimento do Next.js
-npm run build     # compila o app para produção
-npm run start     # executa o app Next.js compilado
-npm test          # roda todos os testes com Vitest
+npm run dev        # servidor de desenvolvimento do Next.js
+npm run build      # compila o app para produção
+npm run start      # executa o app compilado
+npm test           # roda os testes com Vitest
+
+npm run db:migrate # aplica as migrations no banco SQLite (dev)
+npm run db:seed    # popula o banco a partir de docs/planilhas/
+npm run db:reset   # recria o banco do zero (migrate + seed)
 ```
+
+> O banco SQLite de dev fica em `data/sgi-dev.sqlite` (gitignored). Rode
+> `npm run db:reset` após clonar para ter dados locais.
 
 ---
 
 ## 📌 Contexto de Sessão Atual
 
-- **Fase**: Integração Concluída ✅
-- **Estado**: O projeto foi unificado para conter exclusivamente a aplicação moderna em Next.js na raiz, evitando conflitos de pastas e arquivos legados.
+- **Fase**: Refatoração arquitetural + recriação do banco ✅
+- **Estado**: Arquitetura em camadas (rotas finas → services → adapter de
+  banco). Banco recriado em SQLite para desenvolvimento, com schema versionado
+  em migrations e replicável para Postgres em produção. Histórico de contagens
+  passou a ser persistido em tabela própria (`historico_contagem`).

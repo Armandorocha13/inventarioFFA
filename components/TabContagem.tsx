@@ -38,7 +38,6 @@ export default function TabContagem({
   onRegistrarContagem,
   onOrdenarColuna,
   onAbrirModal,
-  setAba,
   perfil,
 }: TabContagemProps) {
   const prog = calcularProgresso(materiaisVisiveis, contagens);

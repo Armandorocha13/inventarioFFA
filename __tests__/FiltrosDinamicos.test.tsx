@@ -1,10 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import AppScreen from '@/components/AppScreen';
+import type { useInventario } from '@/hooks/useInventario';
+
+type InventarioMock = ReturnType<typeof useInventario>;
 
 // Mock sub-components so we test AppScreen filter logic in isolation
 vi.mock('@/components/TabContagem', () => ({
-  default: ({ materiaisVisiveis }: any) => (
+  default: ({ materiaisVisiveis }: { materiaisVisiveis?: unknown[] }) => (
     <div data-testid="tab-contagem">
       Contagem ({materiaisVisiveis?.length || 0} itens)
     </div>
@@ -12,7 +15,7 @@ vi.mock('@/components/TabContagem', () => ({
 }));
 
 vi.mock('@/components/TabMonitoramento', () => ({
-  default: ({ materiais }: any) => (
+  default: ({ materiais }: { materiais?: unknown[] }) => (
     <div data-testid="tab-monitoramento">
       Monitoramento ({materiais?.length || 0} itens)
     </div>
@@ -76,7 +79,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventario as any}
+        inventario={mockInventario as unknown as InventarioMock}
         perfil="monitoramento"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}
@@ -103,7 +106,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventarioContagem as any}
+        inventario={mockInventarioContagem as unknown as InventarioMock}
         perfil="contagem"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}
@@ -132,7 +135,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventarioAuditado as any}
+        inventario={mockInventarioAuditado as unknown as InventarioMock}
         perfil="monitoramento"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}
@@ -160,7 +163,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventario as any}
+        inventario={mockInventario as unknown as InventarioMock}
         perfil="monitoramento"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}
@@ -168,7 +171,6 @@ describe('Filtros Dinâmicos na AppScreen', () => {
     );
 
     const selectEstado = container.querySelector('#selectEstado') as HTMLSelectElement;
-    const selectProjeto = container.querySelector('#selectProjeto') as HTMLSelectElement;
 
     // Inicialmente, todos os projetos devem estar listados
     expect(screen.getByText(/Niterói - CONTRATO: 111/i)).toBeInTheDocument();
@@ -188,7 +190,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventario as any}
+        inventario={mockInventario as unknown as InventarioMock}
         perfil="monitoramento"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}
@@ -229,7 +231,7 @@ describe('Filtros Dinâmicos na AppScreen', () => {
         uf="todos"
         almoxarifados={mockAlmoxarifados}
         todos={mockTodos}
-        inventario={mockInventarioComAlmox as any}
+        inventario={mockInventarioComAlmox as unknown as InventarioMock}
         perfil="monitoramento"
         onVoltarLanding={vi.fn()}
         toast={vi.fn()}

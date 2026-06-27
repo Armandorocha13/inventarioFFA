@@ -41,20 +41,19 @@ export default function HomePage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const inventario = useInventario();
 
+  const adicionarToast = useCallback((msg: string, tipo: 'sucesso' | 'erro' | 'info') => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, msg, tipo }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
   useEffect(() => {
     fetch('/api/filtros')
       .then((r) => r.json())
       .then((data: FiltrosData) => setFiltros(data))
       .catch(() => adicionarToast('Erro ao conectar ao banco de dados.', 'erro'))
       .finally(() => setCarregandoFiltros(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const adicionarToast = useCallback((msg: string, tipo: 'sucesso' | 'erro' | 'info') => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, msg, tipo }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }, []);
+  }, [adicionarToast]);
 
   const handleSelecionarPerfil = useCallback((p: 'contagem' | 'monitoramento') => {
     setPerfil(p);

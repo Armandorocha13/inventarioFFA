@@ -79,9 +79,10 @@ export default function TabUpload({ onVoltar, onUploadSuccess }: TabUploadProps)
       if (onUploadSuccess) {
         await onUploadSuccess();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setStatusMessage({ text: err.message || 'Erro de conexão com o servidor.', type: 'error' });
+      const message = err instanceof Error ? err.message : 'Erro de conexão com o servidor.';
+      setStatusMessage({ text: message, type: 'error' });
     } finally {
       setUploading(false);
     }

@@ -1,68 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
-
-interface ItemContagem {
-  id: number;
-  origem: string;
-  grupo?: string;
-  codmat: string;
-  descricao: string;
-  valorAnterior: number | null;
-  valorNovo: number;
-}
+import { gravarContagens, ContagemInvalidaError } from '@/lib/services/contagem.service';
 
 export async function POST(request: NextRequest) {
-  let contagens: ItemContagem[];
-
+  let payload: unknown;
   try {
-    contagens = await request.json();
+    payload = await request.json();
   } catch {
     return NextResponse.json({ error: 'JSON inválido no corpo da requisição.' }, { status: 400 });
   }
 
-  if (!Array.isArray(contagens) || contagens.length === 0) {
-    return NextResponse.json(
-      { error: 'Corpo da requisição deve ser um array válido de contagens.' },
-      { status: 400 }
-    );
-  }
-
-  const client = await pool.connect();
-
   try {
-    await client.query('BEGIN');
-
-    for (const item of contagens) {
-      const { id, origem, grupo, codmat, valorNovo } = item;
-
-      // 🚧 PILOT TEST LOCK: Somente Rio de Janeiro
-      if ((origem || '').trim().toUpperCase() !== 'RIO DE JANEIRO') {
-        continue;
-      }
-
-      await client.query(
-        `INSERT INTO progresso_contagem (cidade, grupo, codmat, quantidade_contada)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (cidade, grupo, codmat) DO UPDATE SET quantidade_contada = EXCLUDED.quantidade_contada, atualizado_em = CURRENT_TIMESTAMP`,
-        [origem || 'ND', grupo || 'GERAL', codmat, parseFloat(String(valorNovo))]
-      );
-
-      await client.query(
-        `UPDATE saldo_estoque SET saldo_disponivel = $1 WHERE id = $2`,
-        [parseFloat(String(valorNovo)), parseInt(String(id), 10)]
-      );
-    }
-
-    await client.query('COMMIT');
-    return NextResponse.json({ success: true, count: contagens.length });
+    const { count } = await gravarContagens(payload);
+    return NextResponse.json({ success: true, count });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (err instanceof ContagemInvalidaError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error('❌ Erro ao gravar contagens e atualizar estoque:', err);
     return NextResponse.json(
       { error: 'Erro ao gravar as contagens físicas no banco de dados.' },
       { status: 500 }
     );
-  } finally {
-    client.release();
   }
 }
