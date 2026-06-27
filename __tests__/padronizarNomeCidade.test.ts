@@ -31,8 +31,8 @@ describe('padronizarNomeCidade', () => {
     expect(padronizarNomeCidade('31/D TRABALHO')).toBe('SAO PAULO');
 
     // Espírito Santo (contrato 61, 62, 64)
-    expect(padronizarNomeCidade('64/ESSJC01')).toBe('ESPIRITO SANTO');
-    expect(padronizarNomeCidade('61/ESPIRITO SANTO')).toBe('ESPIRITO SANTO');
+    expect(padronizarNomeCidade('64/ESSJC01')).toBe('VITORIA');
+    expect(padronizarNomeCidade('61/ESPIRITO SANTO')).toBe('VITORIA');
     
     // Rio de Janeiro (contrato 21, 23, 24, 47, 48)
     expect(padronizarNomeCidade('47/MDU ESTOQUE')).toBe('RIO DE JANEIRO');

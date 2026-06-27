@@ -85,35 +85,35 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "FERRAM. C.GRANDE": "CAMPO GRANDE",
   "21/FERRAM. C.GRANDE": "CAMPO GRANDE",
   
-  // Espírito Santo
-  "ESPIRITO SANTO": "ESPIRITO SANTO",
-  "SSO ES": "ESPIRITO SANTO",
+  // Espírito Santo (Vila Velha e Vitória são cidades capixabas válidas)
+  "ESPIRITO SANTO": "VITORIA",
+  "SSO ES": "VITORIA",
   "FERRAMENTAL VITÓRIA": "VITORIA",
   "VITORIA": "VITORIA",
-  "61/ESPIRITO SANTO": "ESPIRITO SANTO",
-  "62/SSO ES": "ESPIRITO SANTO",
+  "61/ESPIRITO SANTO": "VITORIA",
+  "62/SSO ES": "VITORIA",
   "61/FERRAMENTAL VITÓRIA": "VITORIA",
-  "64/ESSJC01": "ESPIRITO SANTO",
-  "64/535350": "ESPIRITO SANTO",
-  "64/ESCAR60": "ESPIRITO SANTO",
-  "64/SMA02": "ESPIRITO SANTO",
-  "64/ESPIU04": "ESPIRITO SANTO",
-  "64/COBERT LITORAL SUL": "ESPIRITO SANTO",
-  "64/ESCUP37": "ESPIRITO SANTO",
-  "64/REGULADOR": "ESPIRITO SANTO",
+  "64/ESSJC01": "VITORIA",
+  "64/535350": "VITORIA",
+  "64/ESCAR60": "VITORIA",
+  "64/SMA02": "VITORIA",
+  "64/ESPIU04": "VITORIA",
+  "64/COBERT LITORAL SUL": "VITORIA",
+  "64/ESCUP37": "VITORIA",
+  "64/REGULADOR": "VITORIA",
   "65/570172 AGUIA BRANCA": "AGUIA BRANCA",
-  "65/REGULADOR": "ESPIRITO SANTO",
-  "65/561184  MILLS": "ESPIRITO SANTO",
-  "67/INST. GPON GIGAMAIS": "ESPIRITO SANTO",
-  "67/FERRAMENTAL GIGAMAIS": "ESPIRITO SANTO",
+  "65/REGULADOR": "VITORIA",
+  "65/561184  MILLS": "VITORIA",
+  "67/INST. GPON GIGAMAIS": "VITORIA",
+  "67/FERRAMENTAL GIGAMAIS": "VITORIA",
   "61/SEGREGADO VILA VELHA": "VILA VELHA",
+  "46/TI ESPIRITO SANTO": "VITORIA",
 
   // Rio de Janeiro
   "46/TI": "RIO DE JANEIRO",
   "46/TI SP": "SAO PAULO",
   "46/TI BELO HORIZONTE": "BELO HORIZONTE",
   "46/TI LIGGA PR": "CURITIBA",
-  "46/TI ESPIRITO SANTO": "ESPIRITO SANTO",
   "52/MINAS GERAIS": "BELO HORIZONTE",
   "52/RIO DE JANEIRO": "RIO DE JANEIRO",
   "52/PARANÁ": "CURITIBA",
@@ -139,6 +139,9 @@ export const ALIAS_CIDADE: Record<string, string> = {
   "60/OBRAS DE MANUTENÇÃO": "RIO DE JANEIRO",
   "60/REG. REDE EXTERNA": "RIO DE JANEIRO",
   "60/OBRA BTFAG": "RIO DE JANEIRO",
+  "REG SSO": "RIO DE JANEIRO",
+  "REG SSO RJ": "RIO DE JANEIRO",
+  "SSO": "RIO DE JANEIRO",
 };
 
 /**
@@ -178,7 +181,7 @@ export function padronizarNomeCidade(grupoOriginal: string): string {
 
   // 5. Redirecionamentos para subgrupos interestaduais conhecidos
   if (nome.includes('SP') || nome.includes('SAO PAULO') || nome.includes('SÃO PAULO')) return 'SAO PAULO';
-  if (nome === 'ESPIRITO SANTO' || nome === 'ES') return 'ESPIRITO SANTO';
+  if (nome === 'ESPIRITO SANTO' || nome === 'ES') return 'VITORIA';
   if (nome.includes('PR') || nome.includes('PARANA') || nome.includes('CURITIBA') || nome.includes('LIGGA')) return 'CURITIBA';
   if (nome.includes('BH') || nome.includes('BELO HORIZONTE') || nome.includes('MINAS') || nome.includes('MG')) return 'BELO HORIZONTE';
 
@@ -201,7 +204,7 @@ export function padronizarNomeCidade(grupoOriginal: string): string {
       if ([71, 72].includes(contrato)) return 'CURITIBA';
       if ([1, 31, 36, 37, 38].includes(contrato)) return 'SAO PAULO';
       if ([58, 59].includes(contrato)) return 'BELO HORIZONTE';
-      if ([61, 62, 64, 65, 67].includes(contrato)) return 'ESPIRITO SANTO';
+      if ([61, 62, 64, 65, 67].includes(contrato)) return 'VITORIA';
       if ([21, 23, 24, 34, 40, 41, 42, 43, 45, 47, 48, 49, 52, 60].includes(contrato)) {
         if (contrato === 52) {
           if (grupoOriginal.includes('PARANÁ')) return 'CURITIBA';
