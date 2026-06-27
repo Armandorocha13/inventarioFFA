@@ -113,16 +113,9 @@ export default function AppScreen({
     return m.descricao === tp;
   }, []);
 
-  // 1. Estado (UF) options: UFs where there is at least one material matching other filters
+  // 1. Estado (UF) options: UFs where there is at least one material in the loaded dataset
   const ufsDisponiveis = Array.from(new Set(
     state.materiais
-      .filter(m => 
-        matchProjeto(m, codigoAlmox) &&
-        matchClasse(m, filtroClasse) &&
-        matchAuditado(m, filtroAuditado) &&
-        matchCidade(m, state.filtros.grupo) &&
-        matchTipo(m, state.filtros.tipo)
-      )
       .map(m => {
         const origemUpper = (m.origem || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         if (origemUpper === 'ESPIRITO SANTO') return 'ES';
@@ -147,41 +140,29 @@ export default function AppScreen({
     return contractUf === filtroEstado;
   });
 
-  // 3. Classe options: classes where there is at least one material matching other filters
+  // 3. Classe options: static classes present in the loaded dataset
   const classesDisponiveis = Array.from(new Set(
     state.materiais
-      .filter(m => 
-        matchEstado(m, filtroEstado) &&
-        matchProjeto(m, codigoAlmox) &&
-        matchAuditado(m, filtroAuditado) &&
-        matchCidade(m, state.filtros.grupo) &&
-        matchTipo(m, state.filtros.tipo)
-      )
       .map(m => (m.classeABC || 'C').toUpperCase())
   )).sort();
 
-  // 4. Cidade options: cities where there is at least one material matching other filters
+  // 4. Cidade options: cities belonging to the selected state (Estado) and selected project (Contrato)
   const cidadesDisponiveis = Array.from(new Set(
     state.materiais
       .filter(m => 
         matchEstado(m, filtroEstado) &&
-        matchProjeto(m, codigoAlmox) &&
-        matchClasse(m, filtroClasse) &&
-        matchAuditado(m, filtroAuditado) &&
-        matchTipo(m, state.filtros.tipo)
+        matchProjeto(m, codigoAlmox)
       )
       .map(m => padronizarNomeCidade(m.grupo || ''))
       .filter(Boolean)
   )).sort();
 
-  // 5. Tipo de Material options: descriptions where there is at least one material matching other filters
+  // 5. Tipo de Material options: material types belonging to the selected state, project, and city
   const tiposDisponiveis = Array.from(new Set(
     state.materiais
       .filter(m => 
         matchEstado(m, filtroEstado) &&
         matchProjeto(m, codigoAlmox) &&
-        matchClasse(m, filtroClasse) &&
-        matchAuditado(m, filtroAuditado) &&
         matchCidade(m, state.filtros.grupo)
       )
       .map(m => m.descricao)
