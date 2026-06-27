@@ -1,72 +1,32 @@
 /**
- * auxiliaresUI.ts — Funções Auxiliares Puras de Interface do SGI
- * ─────────────────────────────────────────────────────────────────────────────
- * Funções PURAS de suporte à interface: formatação, classificação,
- * cálculos de progresso e proteção contra XSS.
+ * Funções puras de suporte à UI: formatação, classificação, cálculos
+ * de progresso/acuracidade e sanitização.
+ *
+ * Tipos de domínio vivem em `lib/domain/types`. Re-exportamos aqui apenas
+ * para manter compatibilidade com imports antigos.
  */
 
-export interface Material {
-  id: number;
-  origem: string;
-  grupo?: string;
-  codmat: string;
-  descricao: string;
-  unidade: string;
-  saldoAtual: number;
-  precoUnitario: number;
-  ultimaAtualizacao: string;
-  ultimaContagemFisica?: number;
-  classeABC?: string | null;
-}
+import type {
+  Material,
+  Contagem,
+  ContagensMap,
+  ProgressoResult,
+  AcuracidadeResult,
+  FinanceiroDivergencias,
+  CurvaABCResult,
+  MaterialComValor,
+} from './domain/types';
 
-export interface Contagem {
-  novaQtd: number;
-  observacao: string;
-}
-
-export type ContagensMap = Record<number, Contagem>;
-
-export interface ProgressoResult {
-  total: number;
-  contados: number;
-  percentual: number;
-}
-
-export interface AcuracidadeResult {
-  total: number;
-  contados: number;
-  acertos: number;
-  divergentes: number;
-  taxaAcuracidade: number;
-}
-
-export interface FinanceiroDivergencias {
-  distorcaoPatrimonial: number;
-  resultadoLiquido: number;
-  detalhes: Array<{
-    id: number;
-    descricao: string;
-    desvio: number;
-    precoUnitario: number;
-    impacto: number;
-  }>;
-}
-
-export interface CurvaABCResult {
-  classes: {
-    A: MaterialComValor[];
-    B: MaterialComValor[];
-    C: MaterialComValor[];
-  };
-  acuracidadePorClasse: { A: number; B: number; C: number };
-  valorTotalEstoque: number;
-}
-
-export interface MaterialComValor extends Material {
-  valorEstoque: number;
-}
-
-// ─── formatarData ─────────────────────────────────────────────────────────────
+export type {
+  Material,
+  Contagem,
+  ContagensMap,
+  ProgressoResult,
+  AcuracidadeResult,
+  FinanceiroDivergencias,
+  CurvaABCResult,
+  MaterialComValor,
+};
 
 export function formatarData(isoString: string | null | undefined): string {
   if (!isoString) return 'Sem data';
@@ -78,15 +38,11 @@ export function formatarData(isoString: string | null | undefined): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-// ─── getBadgeClass ────────────────────────────────────────────────────────────
-
 export function getBadgeClass(quantidade: number): string {
   if (quantidade <= 0) return 'badge-zero';
   if (quantidade <= 10) return 'badge-low';
   return 'badge-ok';
 }
-
-// ─── calcularProgresso ────────────────────────────────────────────────────────
 
 export function calcularProgresso(
   materiais: Material[],
@@ -99,8 +55,6 @@ export function calcularProgresso(
   return { total, contados, percentual };
 }
 
-// ─── sanitizarTexto ──────────────────────────────────────────────────────────
-
 export function sanitizarTexto(texto: string | null | undefined): string {
   if (texto === null || texto === undefined) return '';
   return String(texto)
@@ -111,8 +65,6 @@ export function sanitizarTexto(texto: string | null | undefined): string {
     .replace(/'/g, '&#039;');
 }
 
-// ─── truncarTexto ────────────────────────────────────────────────────────────
-
 export function truncarTexto(texto: string | null | undefined, limite: number): string {
   if (texto === null || texto === undefined) return '';
   const str = String(texto);
@@ -120,14 +72,10 @@ export function truncarTexto(texto: string | null | undefined, limite: number): 
   return str.slice(0, limite) + '...';
 }
 
-// ─── formatarMoeda ────────────────────────────────────────────────────────────
-
 export function formatarMoeda(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || isNaN(valor as number)) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor as number);
 }
-
-// ─── calcularAcuracidade ──────────────────────────────────────────────────────
 
 export function calcularAcuracidade(
   materiais: Material[],
@@ -146,21 +94,13 @@ export function calcularAcuracidade(
 
   contagensRealizadas.forEach((m) => {
     const contagem = contagens[m.id];
-    const physical = contagem.novaQtd;
-    const system = m.saldoAtual;
-
-    if (physical === system) {
-      acertos++;
-    } else {
-      divergentes++;
-    }
+    if (contagem.novaQtd === m.saldoAtual) acertos++;
+    else divergentes++;
   });
 
-  const taxaAcuracidade = contados === 0 ? 100 : Math.round((acertos / contados) * 100);
+  const taxaAcuracidade = Math.round((acertos / contados) * 100);
   return { total, contados, acertos, divergentes, taxaAcuracidade };
 }
-
-// ─── calcularFinanceiroDivergencias ───────────────────────────────────────────
 
 export function calcularFinanceiroDivergencias(
   materiais: Material[],
@@ -171,30 +111,25 @@ export function calcularFinanceiroDivergencias(
   const detalhes: FinanceiroDivergencias['detalhes'] = [];
 
   materiais.forEach((m) => {
-    if (m.id in contagens) {
-      const novaQtd = contagens[m.id].novaQtd;
-      if (novaQtd !== m.saldoAtual) {
-        const desvio = novaQtd - m.saldoAtual;
-        const preco = m.precoUnitario || 0;
-        const impacto = desvio * preco;
-        distorcaoPatrimonial += Math.abs(impacto);
-        resultadoLiquido += impacto;
-        detalhes.push({ id: m.id, descricao: m.descricao, desvio, precoUnitario: preco, impacto });
-      }
-    }
+    if (!(m.id in contagens)) return;
+    const novaQtd = contagens[m.id].novaQtd;
+    if (novaQtd === m.saldoAtual) return;
+    const desvio = novaQtd - m.saldoAtual;
+    const preco = m.precoUnitario || 0;
+    const impacto = desvio * preco;
+    distorcaoPatrimonial += Math.abs(impacto);
+    resultadoLiquido += impacto;
+    detalhes.push({ id: m.id, descricao: m.descricao, desvio, precoUnitario: preco, impacto });
   });
 
   return { distorcaoPatrimonial, resultadoLiquido, detalhes };
 }
 
-// ─── classificarCurvaABC ──────────────────────────────────────────────────────
-
 export function classificarCurvaABC(
   materiais: Material[],
   contagens: ContagensMap = {}
 ): CurvaABCResult {
-  const totalMateriais = materiais.length;
-  if (totalMateriais === 0) {
+  if (materiais.length === 0) {
     return {
       classes: { A: [], B: [], C: [] },
       acuracidadePorClasse: { A: 100, B: 100, C: 100 },
@@ -210,8 +145,7 @@ export function classificarCurvaABC(
   const valorTotalEstoque = itensComValor.reduce((acc, i) => acc + i.valorEstoque, 0);
   const classes: CurvaABCResult['classes'] = { A: [], B: [], C: [] };
 
-  // De-duplica por codmat: mantém apenas o item de maior valorEstoque por codmat.
-  // A classeABC já atribuída ao item vencedor determina em qual classe ele aparece.
+  // Deduplica por codmat mantendo apenas o item de maior valorEstoque por codmat.
   const maiorPorCodmat = new Map<string, MaterialComValor>();
   for (const item of itensComValor) {
     const key = item.codmat ?? String(item.id);
@@ -220,17 +154,12 @@ export function classificarCurvaABC(
       maiorPorCodmat.set(key, item);
     }
   }
-  const itensUnicos = Array.from(maiorPorCodmat.values());
 
-  itensUnicos.forEach((item) => {
+  Array.from(maiorPorCodmat.values()).forEach((item) => {
     const cls = (item.classeABC || 'C').toUpperCase();
-    if (cls === 'A') {
-      classes.A.push(item);
-    } else if (cls === 'B') {
-      classes.B.push(item);
-    } else {
-      classes.C.push(item);
-    }
+    if (cls === 'A') classes.A.push(item);
+    else if (cls === 'B') classes.B.push(item);
+    else classes.C.push(item);
   });
 
   const acuracidadePorClasse = { A: 100, B: 100, C: 100 };
