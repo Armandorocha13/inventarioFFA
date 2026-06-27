@@ -1,10 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   calcularAcuracidade,
-  calcularFinanceiroDivergencias,
-  classificarCurvaABC,
   formatarMoeda,
   getBadgeClass,
   truncarTexto,
@@ -17,9 +15,15 @@ interface TabMonitoramentoProps {
   contagens: ContagensMap;
 }
 
-export default function TabMonitoramento({ materiais, contagens }: TabMonitoramentoProps) {
-  const [divergenciasAbertas, setDivergenciasAbertas] = useState(false);
+// Material agrupado por descrição + cidade + UF para a visão analítica.
+type MaterialAgrupado = Material & {
+  cidade: string;
+  uf: string;
+  valorEstoque: number;
+  idsVinculados: number[];
+};
 
+export default function TabMonitoramento({ materiais, contagens }: TabMonitoramentoProps) {
   const materiaisComFisico = materiais.map((m) => {
     const physical = m.id in contagens ? contagens[m.id].novaQtd : 0;
     const desvio = physical - m.saldoAtual;
@@ -32,7 +36,6 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const valorTotalEstoque = materiais.reduce((acc, m) => acc + m.saldoAtual * (m.precoUnitario || 0), 0);
 
   const statsAcuracidade = calcularAcuracidade(materiais, contagens);
-  const totalDivergentes = statsAcuracidade.divergentes;
   const taxaAcuracidade = statsAcuracidade.taxaAcuracidade;
   const totalContados = statsAcuracidade.contados;
 
@@ -41,17 +44,9 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   // Divergências positivas (saldo físico > sistêmico) e negativas (saldo físico < sistêmico)
   const positivos = materiaisComFisico.filter((m) => m.id in contagens && m.desvio > 0);
   const negativos = materiaisComFisico.filter((m) => m.id in contagens && m.desvio < 0);
-  const totalPositivos = positivos.length;
-  const totalNegativos = negativos.length;
   const valorPositivos = positivos.reduce((acc, m) => acc + m.impacto, 0);
   const valorNegativos = negativos.reduce((acc, m) => acc + m.impacto, 0);
 
-
-
-
-
-  const totalDisponivel = materiais.filter((m) => m.saldoAtual > 0).length;
-  const totalZerado = materiais.filter((m) => m.saldoAtual === 0).length;
 
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
@@ -79,23 +74,11 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
       agrupado.valorEstoque += m.saldoAtual * (m.precoUnitario || 0);
       agrupado.idsVinculados.push(m.id);
       return map;
-    }, new Map<string, any>())
+    }, new Map<string, MaterialAgrupado>())
   ).map(([, val]) => val);
 
   const materiaisAnalitico = materiaisAgrupadosPorNome
     .sort((a, b) => b.valorEstoque - a.valorEstoque);
-
-  const divergenciasAtivas = materiais.flatMap((m) => {
-    if (!(m.id in contagens)) return [];
-    const novaQtd = contagens[m.id].novaQtd;
-    if (novaQtd === m.saldoAtual) return [];
-    const desvio = novaQtd - m.saldoAtual;
-    return [{ descricao: m.descricao, origem: m.origem, saldoAtual: m.saldoAtual, novaQtd, desvio, impacto: desvio * (m.precoUnitario || 0) }];
-  });
-
-
-  const pctDisponivel = totalItens > 0 ? Math.round((totalDisponivel / totalItens) * 100) : 0;
-  const pctZerado = totalItens > 0 ? Math.round((totalZerado / totalItens) * 100) : 0;
 
   const getImpactoColor = useCallback((v: number) => {
     if (v < 0) return 'var(--danger)';
@@ -105,7 +88,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
 
   const exportarAnalitico = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const XLSX = (window as any).XLSX;
+    const XLSX = (window as unknown as { XLSX?: typeof import('xlsx') }).XLSX;
     if (!XLSX) {
       alert('Biblioteca XLSX não carregada.');
       return;

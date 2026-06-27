@@ -31,7 +31,7 @@ describe('TabMonitoramento Component', () => {
     const mockBookNew = vi.fn().mockReturnValue({});
     const mockBookAppendSheet = vi.fn();
 
-    (window as any).XLSX = {
+    (window as unknown as { XLSX: unknown }).XLSX = {
       utils: {
         json_to_sheet: mockJsonToSheet,
         book_new: mockBookNew,
@@ -50,6 +50,6 @@ describe('TabMonitoramento Component', () => {
     expect(mockBookAppendSheet).toHaveBeenCalled();
     expect(mockWriteFile).toHaveBeenCalledWith(expect.any(Object), expect.stringContaining('SGI_Tabela_Analitica_'));
 
-    delete (window as any).XLSX;
+    delete (window as unknown as { XLSX?: unknown }).XLSX;
   });
 });

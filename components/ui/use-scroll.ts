@@ -1,22 +1,20 @@
 'use client';
-import React from 'react';
+import { useSyncExternalStore } from 'react';
 
+/**
+ * Retorna `true` quando a página rolou além de `threshold` pixels.
+ * Usa useSyncExternalStore para sincronizar com o scroll do window de forma
+ * segura para SSR/hidratação (snapshot do servidor = false).
+ */
 export function useScroll(threshold: number) {
-	const [scrolled, setScrolled] = React.useState(false);
+	const subscribe = (onChange: () => void) => {
+		window.addEventListener('scroll', onChange, { passive: true });
+		return () => window.removeEventListener('scroll', onChange);
+	};
 
-	const onScroll = React.useCallback(() => {
-		setScrolled(window.scrollY > threshold);
-	}, [threshold]);
-
-	React.useEffect(() => {
-		window.addEventListener('scroll', onScroll);
-		return () => window.removeEventListener('scroll', onScroll);
-	}, [onScroll]);
-
-	// also check on first load
-	React.useEffect(() => {
-		onScroll();
-	}, [onScroll]);
-
-	return scrolled;
+	return useSyncExternalStore(
+		subscribe,
+		() => window.scrollY > threshold,
+		() => false,
+	);
 }
