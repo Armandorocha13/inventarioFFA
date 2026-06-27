@@ -23,7 +23,11 @@ export interface DbTransaction extends DbClient {
   release(): void;
 }
 
+export type Dialect = 'pg' | 'sqlite';
+
 export interface Db extends DbClient {
+  /** Identifica o backend ativo para os poucos pontos onde o SQL diverge. */
+  readonly dialect: Dialect;
   begin(): Promise<DbTransaction>;
   /**
    * Executa `fn` dentro de uma transação. Faz COMMIT em sucesso e ROLLBACK

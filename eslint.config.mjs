@@ -12,11 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Scripts utilitários Node legados (CommonJS) — fora do app.
-    // Serão consolidados/removidos na recriação do banco (Fase B).
-    "scratch/**",
-    "schema.js",
-    "run-migration.js",
   ]),
 ]);
 

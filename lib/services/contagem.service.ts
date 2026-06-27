@@ -1,11 +1,8 @@
 /**
- * Gravação de contagens físicas.
- *
- * Fase A — preserva comportamento atual: upsert em `progresso_contagem` +
- * update em `saldo_estoque.saldo_disponivel`, com PILOT LOCK em RJ.
- *
- * Fase B — passará a inserir em `historico_contagem` (tabela ainda
- * inexistente no banco atual) e remover o PILOT LOCK.
+ * Gravação de contagens físicas, em transação atômica:
+ *   1. upsert em `progresso_contagem` (estado atual da contagem)
+ *   2. update em `saldo_estoque.saldo_disponivel`
+ *   3. insert em `historico_contagem` (auditoria — uma linha por item)
  */
 import { db } from '@/lib/db';
 import type { ContagemInput } from '@/lib/domain/types';
@@ -32,10 +29,6 @@ function normalizar(item: ContagemInput): ContagemInput | null {
   };
 }
 
-// PILOT TEST LOCK — preservado da implementação original. Será removido
-// quando o banco for recriado (Fase B).
-const PILOT_LOCK_ORIGEM = 'RIO DE JANEIRO';
-
 export async function gravarContagens(payload: unknown): Promise<{ count: number }> {
   if (!Array.isArray(payload) || payload.length === 0) {
     throw new ContagemInvalidaError('Corpo da requisição deve ser um array não vazio de contagens.');
@@ -45,10 +38,14 @@ export async function gravarContagens(payload: unknown): Promise<{ count: number
     .map((item) => normalizar(item as ContagemInput))
     .filter((x): x is ContagemInput => x !== null);
 
+  if (itens.length === 0) {
+    throw new ContagemInvalidaError('Nenhuma contagem válida no payload.');
+  }
+
   return db.transaction(async (tx) => {
-    let gravadas = 0;
     for (const item of itens) {
-      if ((item.origem || '').toUpperCase() !== PILOT_LOCK_ORIGEM) continue;
+      const valorAnterior = item.valorAnterior ?? 0;
+      const desvio = item.valorNovo - valorAnterior;
 
       await tx.query(
         `INSERT INTO progresso_contagem (cidade, grupo, codmat, quantidade_contada)
@@ -63,8 +60,24 @@ export async function gravarContagens(payload: unknown): Promise<{ count: number
         `UPDATE saldo_estoque SET saldo_disponivel = $1 WHERE id = $2`,
         [item.valorNovo, item.id]
       );
-      gravadas++;
+
+      await tx.query(
+        `INSERT INTO historico_contagem
+              (codmat, descricao, valor_anterior, valor_novo, desvio, observacao, origem, grupo)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          item.codmat,
+          item.descricao || '',
+          valorAnterior,
+          item.valorNovo,
+          desvio,
+          item.observacao || null,
+          item.origem || 'ND',
+          item.grupo || 'GERAL',
+        ]
+      );
     }
-    return { count: gravadas };
+
+    return { count: itens.length };
   });
 }

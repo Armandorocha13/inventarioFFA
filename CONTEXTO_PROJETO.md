@@ -141,18 +141,47 @@ interface HistoricoRegistro {
 
 ---
 
+## 🗄️ Camada de Banco de Dados
+
+O acesso a dados é abstraído por um **adapter** (`lib/db/adapter.ts`) com duas
+implementações selecionadas em runtime (`lib/db/index.ts`):
+
+| Driver | Quando | Arquivo |
+|--------|--------|---------|
+| **SQLite** | desenvolvimento (sem `DATABASE_URL`) | `lib/db/sqlite.ts` |
+| **Postgres** | produção / `DATABASE_URL` presente | `lib/db/pg.ts` |
+
+Seleção: `DB_DRIVER=sqlite|pg` força explicitamente; sem ele, usa Postgres se
+`DATABASE_URL` existir, senão SQLite. Os *services* emitem SQL no dialeto
+Postgres; o adapter SQLite traduz os Postgres-ismos (`$N`, `ILIKE`, casts,
+`TRANSLATE`) para que o mesmo SQL rode nos dois bancos.
+
+**Schema** (canônico em `lib/db/migrations/*.sql`):
+`de_para_projeto`, `de_para_itens`, `saldo_estoque`, `progresso_contagem`,
+`historico_contagem` (tabela de auditoria real) e a view `vw_estoque_contagem`.
+
 ## ⚙️ Scripts npm
 
 ```bash
-npm run dev       # inicia o servidor de desenvolvimento do Next.js
-npm run build     # compila o app para produção
-npm run start     # executa o app Next.js compilado
-npm test          # roda todos os testes com Vitest
+npm run dev        # servidor de desenvolvimento do Next.js
+npm run build      # compila o app para produção
+npm run start      # executa o app compilado
+npm test           # roda os testes com Vitest
+
+npm run db:migrate # aplica as migrations no banco SQLite (dev)
+npm run db:seed    # popula o banco a partir de docs/planilhas/
+npm run db:reset   # recria o banco do zero (migrate + seed)
 ```
+
+> O banco SQLite de dev fica em `data/sgi-dev.sqlite` (gitignored). Rode
+> `npm run db:reset` após clonar para ter dados locais.
 
 ---
 
 ## 📌 Contexto de Sessão Atual
 
-- **Fase**: Integração Concluída ✅
-- **Estado**: O projeto foi unificado para conter exclusivamente a aplicação moderna em Next.js na raiz, evitando conflitos de pastas e arquivos legados.
+- **Fase**: Refatoração arquitetural + recriação do banco ✅
+- **Estado**: Arquitetura em camadas (rotas finas → services → adapter de
+  banco). Banco recriado em SQLite para desenvolvimento, com schema versionado
+  em migrations e replicável para Postgres em produção. Histórico de contagens
+  passou a ser persistido em tabela própria (`historico_contagem`).

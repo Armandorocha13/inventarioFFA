@@ -83,13 +83,16 @@ export async function listarMateriais(params: ListarMateriaisParams): Promise<Ma
     !cidade || cidade === 'todos' || !contrato || contrato === 'todos';
 
   if (semFiltro) {
+    // Lista de contratos é constante (não vem do usuário) → inline seguro e
+    // portável entre Postgres e SQLite.
+    const listaContratos = CONTRATOS_AUTORIZADOS.join(', ');
     sql = `
       SELECT * FROM vw_estoque_contagem
-       WHERE contrato = ANY($1::int[])
+       WHERE contrato IN (${listaContratos})
        ${EXCLUDE_TIPOS_SQL}
        ORDER BY descricao
     `;
-    queryParams = [CONTRATOS_AUTORIZADOS];
+    queryParams = [];
   } else {
     const queryContrato = parseInt(contrato!, 10);
     if (!CONTRATOS_AUTORIZADOS.includes(queryContrato)) return [];

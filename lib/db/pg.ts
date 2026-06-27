@@ -49,6 +49,8 @@ function wrapTransaction(client: PoolClient): DbTransaction {
 }
 
 export const db: Db = {
+  dialect: 'pg',
+
   async query<T>(sql: string, params: QueryParam[] = []): Promise<QueryResult<T>> {
     const r = await pool.query(sql, params);
     return { rows: r.rows as T[], rowCount: r.rowCount ?? 0 };

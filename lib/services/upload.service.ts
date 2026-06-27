@@ -104,28 +104,51 @@ export async function importarSaldo(buffer: Buffer): Promise<UploadResult> {
   }
 
   return db.transaction(async (tx) => {
-    await tx.query('TRUNCATE saldo_estoque RESTART IDENTITY CASCADE');
+    // Limpa a tabela. TRUNCATE...RESTART IDENTITY é Postgres-only; no SQLite
+    // usamos DELETE + reset da sequência.
+    if (db.dialect === 'pg') {
+      await tx.query('TRUNCATE saldo_estoque RESTART IDENTITY CASCADE');
+    } else {
+      await tx.query('DELETE FROM saldo_estoque');
+      await tx.query(`DELETE FROM sqlite_sequence WHERE name = 'saldo_estoque'`);
+    }
 
-    const cols = (k: keyof LinhaSaldo) => dataRows.map((r) => r[k]);
-
-    await tx.query(
-      `INSERT INTO saldo_estoque (
-         tipo_saldo, grupo_codigo, grupo, codmat, descricao, descricao_auxiliar,
-         unid, codcpl, cod_cpl_auxiliar, saldo_estoque, prog_rm, prog_tm,
-         saldo_disponivel, valor, cod_grupo_material, grupo_material
-       )
-       SELECT * FROM UNNEST(
-         $1::VARCHAR[], $2::VARCHAR[], $3::VARCHAR[], $4::VARCHAR[], $5::VARCHAR[], $6::VARCHAR[],
-         $7::VARCHAR[], $8::VARCHAR[], $9::VARCHAR[], $10::NUMERIC[], $11::NUMERIC[], $12::NUMERIC[],
-         $13::NUMERIC[], $14::NUMERIC[], $15::VARCHAR[], $16::VARCHAR[]
-       )`,
-      [
-        cols('tipoSaldo'), cols('grupoCodigo'), cols('grupo'), cols('codmat'),
-        cols('descricao'), cols('descricaoAuxiliar'), cols('unid'), cols('codcpl'),
-        cols('codCplAuxiliar'), cols('saldoEstoque'), cols('progRm'), cols('progTm'),
-        cols('saldoDisponivel'), cols('valor'), cols('codGrupoMaterial'), cols('grupoMaterial'),
-      ] as never,
-    );
+    if (db.dialect === 'pg') {
+      const cols = (k: keyof LinhaSaldo) => dataRows.map((r) => r[k]);
+      await tx.query(
+        `INSERT INTO saldo_estoque (
+           tipo_saldo, grupo_codigo, grupo, codmat, descricao, descricao_auxiliar,
+           unid, codcpl, cod_cpl_auxiliar, saldo_estoque, prog_rm, prog_tm,
+           saldo_disponivel, valor, cod_grupo_material, grupo_material
+         )
+         SELECT * FROM UNNEST(
+           $1::VARCHAR[], $2::VARCHAR[], $3::VARCHAR[], $4::VARCHAR[], $5::VARCHAR[], $6::VARCHAR[],
+           $7::VARCHAR[], $8::VARCHAR[], $9::VARCHAR[], $10::NUMERIC[], $11::NUMERIC[], $12::NUMERIC[],
+           $13::NUMERIC[], $14::NUMERIC[], $15::VARCHAR[], $16::VARCHAR[]
+         )`,
+        [
+          cols('tipoSaldo'), cols('grupoCodigo'), cols('grupo'), cols('codmat'),
+          cols('descricao'), cols('descricaoAuxiliar'), cols('unid'), cols('codcpl'),
+          cols('codCplAuxiliar'), cols('saldoEstoque'), cols('progRm'), cols('progTm'),
+          cols('saldoDisponivel'), cols('valor'), cols('codGrupoMaterial'), cols('grupoMaterial'),
+        ] as never,
+      );
+    } else {
+      const insertSql = `
+        INSERT INTO saldo_estoque (
+          tipo_saldo, grupo_codigo, grupo, codmat, descricao, descricao_auxiliar,
+          unid, codcpl, cod_cpl_auxiliar, saldo_estoque, prog_rm, prog_tm,
+          saldo_disponivel, valor, cod_grupo_material, grupo_material
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      `;
+      for (const r of dataRows) {
+        await tx.query(insertSql, [
+          r.tipoSaldo, r.grupoCodigo, r.grupo, r.codmat, r.descricao, r.descricaoAuxiliar,
+          r.unid, r.codcpl, r.codCplAuxiliar, r.saldoEstoque, r.progRm, r.progTm,
+          r.saldoDisponivel, r.valor, r.codGrupoMaterial, r.grupoMaterial,
+        ]);
+      }
+    }
 
     const sync = await tx.query(
       `UPDATE saldo_estoque se

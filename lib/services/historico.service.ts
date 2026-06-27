@@ -1,11 +1,6 @@
 /**
- * Consulta de histórico de contagens.
- *
- * Fase A — preserva comportamento atual: lê da view `vw_estoque_contagem`
- * filtrando por `origem = 'RIO DE JANEIRO' AND contrato = 21`.
- *
- * Fase B — passará a ler de uma tabela `historico_contagem` real e
- * remover os hardcodes de UF/contrato.
+ * Consulta do histórico de contagens, lendo da tabela de auditoria
+ * `historico_contagem` (mais recentes primeiro).
  */
 import { db } from '@/lib/db';
 import type { HistoricoRegistro } from '@/lib/domain/types';
@@ -14,8 +9,8 @@ interface HistoricoRow {
   id: number;
   codmat: string | null;
   descricao: string | null;
-  valorAnterior: string | number | null;
-  valorNovo: string | number | null;
+  valor_anterior: string | number | null;
+  valor_novo: string | number | null;
   desvio: string | number | null;
   observacao: string | null;
   timestamp: string;
@@ -23,30 +18,18 @@ interface HistoricoRow {
 
 export async function listarHistorico(): Promise<HistoricoRegistro[]> {
   const { rows } = await db.query<HistoricoRow>(
-    `
-    SELECT
-      id,
-      codmat,
-      descricao,
-      "saldoAtual"            AS "valorAnterior",
-      "ultimaContagemFisica"  AS "valorNovo",
-      ("ultimaContagemFisica" - "saldoAtual") AS desvio,
-      NULL                    AS observacao,
-      CURRENT_TIMESTAMP       AS timestamp
-    FROM vw_estoque_contagem
-    WHERE "ultimaContagemFisica" IS NOT NULL
-      AND origem = 'RIO DE JANEIRO' AND contrato = 21
-    ORDER BY descricao
-    LIMIT 100
-    `
+    `SELECT id, codmat, descricao, valor_anterior, valor_novo, desvio, observacao, timestamp
+       FROM historico_contagem
+      ORDER BY timestamp DESC, id DESC
+      LIMIT 100`
   );
 
   return rows.map((row) => ({
     id: row.id,
     codmat: row.codmat ? row.codmat.trim() : '',
     descricao: row.descricao ? row.descricao.trim() : '',
-    valorAnterior: row.valorAnterior != null ? parseFloat(String(row.valorAnterior)) : null,
-    valorNovo: row.valorNovo != null ? parseFloat(String(row.valorNovo)) : 0,
+    valorAnterior: row.valor_anterior != null ? parseFloat(String(row.valor_anterior)) : null,
+    valorNovo: row.valor_novo != null ? parseFloat(String(row.valor_novo)) : 0,
     desvio: row.desvio != null ? parseFloat(String(row.desvio)) : 0,
     observacao: row.observacao ? row.observacao.trim() : null,
     timestamp: row.timestamp,
