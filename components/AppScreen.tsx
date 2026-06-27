@@ -6,6 +6,7 @@ import TabContagem from './TabContagem';
 import TabMonitoramento from './TabMonitoramento';
 import TabUpload from './TabUpload';
 import ModalConfirmacao from './ModalConfirmacao';
+import ModalMaterialExtra from './ModalMaterialExtra';
 import type { useInventario } from '@/hooks/useInventario';
 import type { AbaAtiva } from '@/hooks/useInventario';
 import type { ContagensMap } from '@/lib/domain/types';
@@ -43,6 +44,7 @@ export default function AppScreen({
   const [codigoAlmox, setCodigoAlmox] = useState('');
   const [abaAnterior, setAbaAnterior] = useState<AbaAtiva>('monitoramento');
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalAddExtraAberto, setModalAddExtraAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [tema, setTema] = useState<'claro' | 'escuro'>('claro');
@@ -243,8 +245,6 @@ export default function AppScreen({
 
   const handleAlmoxChange = useCallback(async (codigo: string) => {
     setCodigoAlmox(codigo);
-    setFiltroGrupo('todas');
-    setFiltroTipo('todos');
     if (!codigo) return;
     try {
       let cidadesValidas: string[] | undefined = undefined;
@@ -269,7 +269,31 @@ export default function AppScreen({
     } catch {
       toast('Falha ao conectar com o banco Neon.', 'erro');
     }
-  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil, setFiltroGrupo, setFiltroTipo]);
+  }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil]);
+
+  // Resets for invalid filter selections when options list changes
+  useEffect(() => {
+    if (codigoAlmox && codigoAlmox !== 'todos') {
+      const exists = projetosFiltrados.some(p => p.codigo === codigoAlmox);
+      if (!exists) {
+        handleAlmoxChange('todos');
+      }
+    }
+  }, [projetosFiltrados, codigoAlmox, handleAlmoxChange]);
+
+  useEffect(() => {
+    const selectedCidade = state.filtros.grupo;
+    if (selectedCidade && selectedCidade !== 'todas' && !cidadesDisponiveis.includes(selectedCidade)) {
+      setFiltroGrupo('todas');
+    }
+  }, [cidadesDisponiveis, state.filtros.grupo, setFiltroGrupo]);
+
+  useEffect(() => {
+    const selectedTipo = state.filtros.tipo;
+    if (selectedTipo && selectedTipo !== 'todos' && !tiposDisponiveis.includes(selectedTipo)) {
+      setFiltroTipo('todos');
+    }
+  }, [tiposDisponiveis, state.filtros.tipo, setFiltroTipo]);
 
   // Entrar direto se for Monitoramento (após handleAlmoxChange estar definido).
   // Carregamento de dados na montagem — o setState (via handleAlmoxChange) é
@@ -283,8 +307,7 @@ export default function AppScreen({
 
   const handleEstadoChange = useCallback((estado: string) => {
     setFiltroEstado(estado);
-    setFiltroGrupo('todas'); // Reset city/group filter on state change
-    setFiltroTipo('todos');  // Reset type filter on state change
+    setFiltroGrupo('todas'); // Limpa cidade ao mudar Estado
     
     // Reset selected contract if it does not belong to the selected state
     if (estado !== 'todos' && codigoAlmox !== 'todos' && codigoAlmox !== '') {
@@ -302,12 +325,11 @@ export default function AppScreen({
         }
       }
     }
-  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange, setFiltroGrupo, setFiltroTipo]);
+  }, [codigoAlmox, uf, todos, almoxarifados, handleAlmoxChange, setFiltroGrupo]);
 
   const handleCidadeChange = useCallback((cidade: string) => {
     setFiltroGrupo(cidade);
-    setFiltroTipo('todos'); // Reset type filter on city change
-  }, [setFiltroGrupo, setFiltroTipo]);
+  }, [setFiltroGrupo]);
 
   const handleSalvarContagens = useCallback(async () => {
     setSalvando(true);
@@ -341,6 +363,34 @@ export default function AppScreen({
       setSalvando(false);
     }
   }, [state.contagens, state.materiais, gravarContagens, carregarMateriais, codigoAlmox, uf, toast]);
+
+  const handleAdicionarItemExtra = useCallback(async (dados: {
+    codmat: string;
+    descricao: string;
+    unidade: string;
+    quantidade: number;
+    precoUnitario: number;
+    classeABC: string;
+  }) => {
+    // Parse origin and contrato from codigoAlmox  (format: CIDADE|CONTRATO|PROJETO or CIDADE|CONTRATO)
+    const parts = codigoAlmox.split('|');
+    const origem = parts[0];
+    const contrato = parseInt(parts[1] || '0', 10);
+    const grupo = parts[2] || parts[0];
+
+    const res = await fetch('/api/materiais/extra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origem, contrato, grupo, ...dados }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erro desconhecido ao inserir item extra');
+    }
+    setModalAddExtraAberto(false);
+    toast('Item extra adicionado e contagem registrada!', 'sucesso');
+    await carregarMateriais(codigoAlmox);
+  }, [codigoAlmox, carregarMateriais, toast]);
 
   const todasUFs = Object.keys(todos).sort();
 
@@ -601,6 +651,7 @@ export default function AppScreen({
                   onRegistrarContagem={handleRegistrarContagem}
                   onOrdenarColuna={ordenarColuna}
                   onAbrirModal={() => setModalAberto(true)}
+                  onAbrirModalAddExtra={() => setModalAddExtraAberto(true)}
                   setAba={setAba}
                   perfil={perfil}
                 />
@@ -628,6 +679,13 @@ export default function AppScreen({
           onConfirmar={handleSalvarContagens}
           onCancelar={() => setModalAberto(false)}
           perfil={perfil}
+        />
+      )}
+
+      {modalAddExtraAberto && (
+        <ModalMaterialExtra
+          onConfirmar={handleAdicionarItemExtra}
+          onCancelar={() => setModalAddExtraAberto(false)}
         />
       )}
     </div>

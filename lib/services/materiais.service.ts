@@ -161,3 +161,102 @@ export async function listarMateriais(params: ListarMateriaisParams): Promise<Ma
 
   return aplicarCurvaABC(materiais);
 }
+
+export interface InserirMaterialExtraInput {
+  origem: string;
+  contrato: number;
+  grupo: string;
+  codmat: string;
+  descricao: string;
+  unidade: string;
+  quantidade: number;
+  observacao?: string;
+  classeABC?: string;
+  precoUnitario?: number;
+}
+
+export async function inserirMaterialExtra(input: InserirMaterialExtraInput) {
+  const {
+    origem,
+    contrato,
+    grupo,
+    codmat,
+    descricao,
+    unidade,
+    quantidade,
+    observacao = '',
+    classeABC = 'C',
+    precoUnitario = 0,
+  } = input;
+
+  if (!origem || !contrato || !grupo || !codmat || !descricao || !unidade) {
+    throw new Error('Todos os campos obrigatórios devem ser preenchidos.');
+  }
+
+  // 1. Verificar se o material já existe no catálogo para esta origem/cidade/contrato/projeto
+  const checkSql = `
+    SELECT id FROM saldo_estoque 
+    WHERE origem = $1 AND contrato = $2 AND grupo = $3 AND codmat = $4
+  `;
+  const { rows } = await db.query<{ id: number }>(checkSql, [origem.toUpperCase(), contrato, grupo, codmat]);
+
+  let materialId: number;
+
+  if (rows.length > 0) {
+    materialId = rows[0].id;
+  } else {
+    // Insere novo material com saldo 0 no catálogo
+    const insertSql = `
+      INSERT INTO saldo_estoque (
+        data, origem, contrato, grupo, codmat, descricao, unidade,
+        saldo_estoque, saldo_disponivel, valor, total_real, classe_abc
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `;
+    const dataHoje = new Date().toISOString().slice(0, 10);
+    await db.query(insertSql, [
+      dataHoje,
+      origem.toUpperCase(),
+      contrato,
+      grupo,
+      codmat,
+      descricao.toUpperCase(),
+      unidade.toUpperCase(),
+      0, // saldo_estoque
+      0, // saldo_disponivel
+      precoUnitario,
+      0, // total_real
+      classeABC.toUpperCase()
+    ]);
+    
+    // Recupera a ID do novo material criado
+    const fetchNewSql = `
+      SELECT id FROM saldo_estoque 
+      WHERE origem = $1 AND contrato = $2 AND grupo = $3 AND codmat = $4
+    `;
+    const fetchRes = await db.query<{ id: number }>(fetchNewSql, [origem.toUpperCase(), contrato, grupo, codmat]);
+    if (fetchRes.rows.length === 0) {
+      throw new Error('Erro ao recuperar ID do material recém-criado.');
+    }
+    materialId = fetchRes.rows[0].id;
+  }
+
+  // 2. Insere/Atualiza a contagem em progresso_contagem
+  const deleteContagemSql = `
+    DELETE FROM progresso_contagem 
+    WHERE cidade = $1 AND grupo = $2 AND codmat = $3
+  `;
+  const insertContagemSql = `
+    INSERT INTO progresso_contagem (cidade, grupo, codmat, quantidade_contada, atualizado_em)
+    VALUES ($1, $2, $3, $4, $5)
+  `;
+  await db.query(deleteContagemSql, [origem.toUpperCase(), grupo, codmat]);
+  await db.query(insertContagemSql, [
+    origem.toUpperCase(),
+    grupo,
+    codmat,
+    quantidade,
+    new Date().toISOString()
+  ]);
+
+  return { success: true, materialId };
+}

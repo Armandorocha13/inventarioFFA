@@ -24,6 +24,7 @@ interface TabContagemProps {
   onRegistrarContagem: (id: number, novaQtd: number | null, observacao: string) => void;
   onOrdenarColuna: (coluna: keyof Material) => void;
   onAbrirModal: () => void;
+  onAbrirModalAddExtra?: () => void;
   setAba: (aba: AbaAtiva) => void;
   perfil?: PerfilAcesso;
 }
@@ -38,6 +39,7 @@ export default function TabContagem({
   onRegistrarContagem,
   onOrdenarColuna,
   onAbrirModal,
+  onAbrirModalAddExtra,
   perfil,
 }: TabContagemProps) {
   const prog = calcularProgresso(materiaisVisiveis, contagens);
@@ -154,6 +156,7 @@ export default function TabContagem({
               {(
                 [
                   { col: 'origem', label: 'Origem' },
+                  { col: 'grupo', label: 'Projeto' },
                   { col: 'codmat', label: 'Código Mat.' },
                   { col: 'descricao', label: 'Descrição' },
                   { col: 'unidade', label: 'UN' },
@@ -206,10 +209,14 @@ export default function TabContagem({
           <button className="btn btn-secondary btn-excel" onClick={exportarExcel}>
             <i className="fas fa-file-excel"></i> Exportar
           </button>
+          {perfil === 'contagem' && codigoAlmox && codigoAlmox !== 'todos' && (
+            <button className="btn btn-secondary btn-excel" onClick={onAbrirModalAddExtra} style={{ background: 'rgba(59, 130, 246, 0.08)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <i className="fas fa-plus"></i> Item Extra
+            </button>
+          )}
           <button
             id="btnSalvar"
             className="btn btn-primary"
-            disabled={prog.contados === 0}
             onClick={onAbrirModal}
           >
             <i className="fas fa-save"></i> Gravar Contagem
@@ -264,6 +271,7 @@ function MaterialRow({ material: m, contagem, onRegistrar, perfil }: MaterialRow
   return (
     <tr data-id={m.id} className={isEditado ? 'linha-editada' : ''}>
       <td><strong>{sanitizarTexto(m.origem)}</strong></td>
+      <td><span style={{ color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, maxWidth: '120px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.grupo}>{sanitizarTexto(m.grupo)}</span></td>
       <td><span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600 }}>{m.codmat}</span></td>
       <td title={m.descricao}>{truncarTexto(m.descricao, 35)}</td>
       <td><span className="badge-unidade">{sanitizarTexto(m.unidade)}</span></td>

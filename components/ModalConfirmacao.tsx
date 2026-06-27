@@ -56,6 +56,14 @@ export default function ModalConfirmacao({
               </div>
             )}
           </div>
+          {prog.percentual < 100 && (
+            <div style={{ marginTop: '1rem', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fas fa-exclamation-triangle" style={{ color: '#d97706', fontSize: '0.9rem' }}></i>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-main)' }}>
+                <strong>Contagem parcial:</strong> apenas <strong>{prog.contados}</strong> de <strong>{prog.total}</strong> itens foram auditados ({prog.percentual}%). Os demais permanecerão com seu valor anterior.
+              </span>
+            </div>
+          )}
         </div>
         <div className="modal-actions">
           <button
