@@ -160,27 +160,30 @@ export function useInventario() {
         materiais = materiais.filter((m) => permitidas.has(normalizeStr(m.origem)));
       }
 
-      // Cálculo Dinâmico da Curva ABC (Pareto 80/15/5) para o contexto atual
-      materiais.forEach((m) => {
-        m.valorEstoqueTemp = (m.saldoAtual || 0) * (m.precoUnitario || 0);
-      });
-      materiais.sort((a, b) => (b.valorEstoqueTemp ?? 0) - (a.valorEstoqueTemp ?? 0));
-      const valorTotalEstoque = materiais.reduce((acc, m) => acc + (m.valorEstoqueTemp ?? 0), 0);
-      
-      let somaAcumulada = 0;
-      materiais.forEach((m) => {
-        somaAcumulada += m.valorEstoqueTemp ?? 0;
-        const percentual = valorTotalEstoque > 0 ? somaAcumulada / valorTotalEstoque : 0;
+      const jaTemABC = materiais.every((m) => m.classeABC);
+      if (!jaTemABC) {
+        // Cálculo Dinâmico da Curva ABC (Pareto 80/15/5) para o contexto atual
+        materiais.forEach((m) => {
+          m.valorEstoqueTemp = (m.saldoAtual || 0) * (m.precoUnitario || 0);
+        });
+        materiais.sort((a, b) => (b.valorEstoqueTemp ?? 0) - (a.valorEstoqueTemp ?? 0));
+        const valorTotalEstoque = materiais.reduce((acc, m) => acc + (m.valorEstoqueTemp ?? 0), 0);
         
-        if (percentual <= 0.8) {
-          m.classeABC = 'A';
-        } else if (percentual <= 0.95) {
-          m.classeABC = 'B';
-        } else {
-          m.classeABC = 'C';
-        }
-        delete m.valorEstoqueTemp;
-      });
+        let somaAcumulada = 0;
+        materiais.forEach((m) => {
+          somaAcumulada += m.valorEstoqueTemp ?? 0;
+          const percentual = valorTotalEstoque > 0 ? somaAcumulada / valorTotalEstoque : 0;
+          
+          if (percentual <= 0.8) {
+            m.classeABC = 'A';
+          } else if (percentual <= 0.95) {
+            m.classeABC = 'B';
+          } else {
+            m.classeABC = 'C';
+          }
+          delete m.valorEstoqueTemp;
+        });
+      }
 
       const contagensIniciais: ContagensMap = {};
       materiais.forEach((m) => {

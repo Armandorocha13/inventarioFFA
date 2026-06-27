@@ -61,21 +61,134 @@ export default function AppScreen({
     MG: 'Minas Gerais',
   };
 
-  const getProjetosFiltrados = useCallback(() => {
-    const base = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
-    if (filtroEstado === 'todos') return base;
-    return base.filter((a) => {
-      let contractUf = 'RJ';
-      const cityUpper = (a.cidade || '').toUpperCase();
-      if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
-      else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
-      else if (cityUpper === 'CURITIBA') contractUf = 'PR';
-      else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
-      return contractUf === filtroEstado;
-    });
-  }, [uf, todos, almoxarifados, filtroEstado]);
+  const matchEstado = useCallback((m: any, est: string) => {
+    if (est === 'todos') return true;
+    let matUf = 'RJ';
+    const origemUpper = (m.origem || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (origemUpper === 'ESPIRITO SANTO') matUf = 'ES';
+    else if (origemUpper === 'SAO PAULO') matUf = 'SP';
+    else if (origemUpper === 'CURITIBA') matUf = 'PR';
+    else if (['UBERLANDIA', 'VALADARES', 'BELO HORIZONTE', 'JUIZ DE FORA', 'VARGINHA'].includes(origemUpper)) matUf = 'MG';
+    else if (origemUpper === 'CAMPO GRANDE') matUf = 'MS';
+    return matUf === est;
+  }, []);
 
-  const projetosFiltrados = getProjetosFiltrados();
+  const matchProjeto = useCallback((m: any, almoxCode: string) => {
+    if (!almoxCode || almoxCode === 'todos') return true;
+    const parts = almoxCode.split('|');
+    const cidade = parts[0];
+    const contrato = parts[1] ? parseInt(parts[1], 10) : NaN;
+    const projeto = parts[2];
+    
+    const mCity = padronizarNomeCidade(m.grupo || '');
+    const mContrato = m.contrato;
+    const mProjeto = m.grupo;
+    
+    const cityMatch = !cidade || m.origem?.toUpperCase() === cidade.toUpperCase() || mCity.toUpperCase() === cidade.toUpperCase();
+    const contractMatch = isNaN(contrato) || mContrato === undefined || mContrato === contrato;
+    const projectMatch = !projeto || mProjeto === undefined || mProjeto === projeto;
+    
+    return cityMatch && contractMatch && projectMatch;
+  }, []);
+
+  const matchClasse = useCallback((m: any, cl: string) => {
+    if (cl === 'todas') return true;
+    const abc = m.classeABC || 'C';
+    return abc.toUpperCase() === cl.toUpperCase();
+  }, []);
+
+  const matchAuditado = useCallback((m: any, aud: string) => {
+    if (aud === 'todos') return true;
+    const foiAuditado = m.id in state.contagens;
+    return aud === 'sim' ? foiAuditado : !foiAuditado;
+  }, [state.contagens]);
+
+  const matchCidade = useCallback((m: any, cid: string) => {
+    if (cid === 'todas') return true;
+    return padronizarNomeCidade(m.grupo || '') === cid;
+  }, []);
+
+  const matchTipo = useCallback((m: any, tp: string) => {
+    if (tp === 'todos') return true;
+    return m.descricao === tp;
+  }, []);
+
+  // 1. Estado (UF) options: UFs where there is at least one material matching other filters
+  const ufsDisponiveis = Array.from(new Set(
+    state.materiais
+      .filter(m => 
+        matchProjeto(m, codigoAlmox) &&
+        matchClasse(m, filtroClasse) &&
+        matchAuditado(m, filtroAuditado) &&
+        matchCidade(m, state.filtros.grupo) &&
+        matchTipo(m, state.filtros.tipo)
+      )
+      .map(m => {
+        const origemUpper = (m.origem || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (origemUpper === 'ESPIRITO SANTO') return 'ES';
+        if (origemUpper === 'SAO PAULO') return 'SP';
+        if (origemUpper === 'CURITIBA') return 'PR';
+        if (['UBERLANDIA', 'VALADARES', 'BELO HORIZONTE', 'JUIZ DE FORA', 'VARGINHA'].includes(origemUpper)) return 'MG';
+        if (origemUpper === 'CAMPO GRANDE') return 'MS';
+        return 'RJ';
+      })
+  )).sort();
+
+  // 2. Projeto options: projects belonging to the selected state (Estado)
+  const baseProjetos = uf === 'todos' ? Object.values(todos).flat() : almoxarifados;
+  const projetosFiltrados = baseProjetos.filter(projOpt => {
+    if (filtroEstado === 'todos') return true;
+    let contractUf = 'RJ';
+    const cityUpper = (projOpt.cidade || '').toUpperCase();
+    if (cityUpper === 'ESPIRITO SANTO' || cityUpper === 'ESPÍRITO SANTO') contractUf = 'ES';
+    else if (cityUpper === 'SÃO PAULO' || cityUpper === 'SAO PAULO') contractUf = 'SP';
+    else if (cityUpper === 'CURITIBA') contractUf = 'PR';
+    else if (cityUpper === 'MINAS GERAIS') contractUf = 'MG';
+    return contractUf === filtroEstado;
+  });
+
+  // 3. Classe options: classes where there is at least one material matching other filters
+  const classesDisponiveis = Array.from(new Set(
+    state.materiais
+      .filter(m => 
+        matchEstado(m, filtroEstado) &&
+        matchProjeto(m, codigoAlmox) &&
+        matchAuditado(m, filtroAuditado) &&
+        matchCidade(m, state.filtros.grupo) &&
+        matchTipo(m, state.filtros.tipo)
+      )
+      .map(m => (m.classeABC || 'C').toUpperCase())
+  )).sort();
+
+  // 4. Cidade options: cities where there is at least one material matching other filters
+  const cidadesDisponiveis = Array.from(new Set(
+    state.materiais
+      .filter(m => 
+        matchEstado(m, filtroEstado) &&
+        matchProjeto(m, codigoAlmox) &&
+        matchClasse(m, filtroClasse) &&
+        matchAuditado(m, filtroAuditado) &&
+        matchTipo(m, state.filtros.tipo)
+      )
+      .map(m => padronizarNomeCidade(m.grupo || ''))
+      .filter(Boolean)
+  )).sort();
+
+  // 5. Tipo de Material options: descriptions where there is at least one material matching other filters
+  const tiposDisponiveis = Array.from(new Set(
+    state.materiais
+      .filter(m => 
+        matchEstado(m, filtroEstado) &&
+        matchProjeto(m, codigoAlmox) &&
+        matchClasse(m, filtroClasse) &&
+        matchAuditado(m, filtroAuditado) &&
+        matchCidade(m, state.filtros.grupo)
+      )
+      .map(m => m.descricao)
+      .filter(Boolean)
+  )).sort();
+
+
 
   // Scroll effect para header blur
   useEffect(() => {
@@ -157,6 +270,42 @@ export default function AppScreen({
     }
   }, [carregarMateriais, restaurarContagens, toast, uf, almoxarifados, perfil]);
 
+  // Resets for invalid filter selections when options list changes
+  useEffect(() => {
+    if (filtroEstado !== 'todos' && !ufsDisponiveis.includes(filtroEstado)) {
+      setFiltroEstado('todos');
+    }
+  }, [ufsDisponiveis, filtroEstado]);
+
+  useEffect(() => {
+    if (codigoAlmox && codigoAlmox !== 'todos') {
+      const exists = projetosFiltrados.some(p => p.codigo === codigoAlmox);
+      if (!exists) {
+        handleAlmoxChange('todos');
+      }
+    }
+  }, [projetosFiltrados, codigoAlmox, handleAlmoxChange]);
+
+  useEffect(() => {
+    const selectedCidade = state.filtros.grupo;
+    if (selectedCidade && selectedCidade !== 'todas' && !cidadesDisponiveis.includes(selectedCidade)) {
+      setFiltroGrupo('todas');
+    }
+  }, [cidadesDisponiveis, state.filtros.grupo, setFiltroGrupo]);
+
+  useEffect(() => {
+    const selectedTipo = state.filtros.tipo;
+    if (selectedTipo && selectedTipo !== 'todos' && !tiposDisponiveis.includes(selectedTipo)) {
+      setFiltroTipo('todos');
+    }
+  }, [tiposDisponiveis, state.filtros.tipo, setFiltroTipo]);
+
+  useEffect(() => {
+    if (filtroClasse !== 'todas' && !classesDisponiveis.includes(filtroClasse.toUpperCase())) {
+      setFiltroClasse('todas');
+    }
+  }, [classesDisponiveis, filtroClasse]);
+
   // Entrar direto se for Monitoramento (após handleAlmoxChange estar definido).
   // Carregamento de dados na montagem — o setState (via handleAlmoxChange) é
   // intencional; o guard !codigoAlmox garante execução única.
@@ -224,46 +373,9 @@ export default function AppScreen({
 
   const todasUFs = Object.keys(todos).sort();
 
-  // Filter raw materials by selected UF (Estado) first, to populate the city filter options dynamically
-  const materiaisDoEstado = state.materiais.filter((m) => {
-    if (filtroEstado !== 'todos') {
-      let matUf = 'RJ';
-      const origemUpper = (m.origem || '').toUpperCase();
-      if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') matUf = 'ES';
-      else if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') matUf = 'SP';
-      else if (origemUpper === 'CURITIBA') matUf = 'PR';
-      else if (origemUpper === 'MINAS GERAIS') matUf = 'MG';
-      
-      return matUf === filtroEstado;
-    }
-    return true;
-  });
-
-  // Dynamic frontend filtering for Estado, Projeto, Classificacao, and Auditado
+  // Dynamic frontend filtering for Estado, Classificacao, and Auditado
   const materiaisBase = state.materiaisVisiveis.filter((m) => {
-    // 1. Filter by Estado
-    if (filtroEstado !== 'todos') {
-      let matUf = 'RJ';
-      const origemUpper = (m.origem || '').toUpperCase();
-      if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') matUf = 'ES';
-      else if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') matUf = 'SP';
-      else if (origemUpper === 'CURITIBA') matUf = 'PR';
-      else if (origemUpper === 'MINAS GERAIS') matUf = 'MG';
-      
-      if (matUf !== filtroEstado) return false;
-    }
-
-    // 2. Filter by Auditado (sim/nao)
-    if (state.abaAtiva === 'monitoramento') {
-      const foiAuditado = m.id in state.contagens;
-      if (filtroAuditado === 'sim') {
-        if (!foiAuditado) return false;
-      } else if (filtroAuditado === 'nao') {
-        if (foiAuditado) return false;
-      }
-    }
-
-    return true;
+    return matchEstado(m, filtroEstado) && matchAuditado(m, filtroAuditado);
   });
 
   // Cálculo Dinâmico da Curva ABC Relativo aos filtros ativos
@@ -390,7 +502,7 @@ export default function AppScreen({
                   onChange={(e) => handleEstadoChange(e.target.value)}
                 >
                   <option value="todos">Todos os Estados</option>
-                  {todasUFs.map((ufSigla) => (
+                  {todasUFs.filter(ufSigla => ufsDisponiveis.includes(ufSigla) || ufSigla === filtroEstado).map((ufSigla) => (
                     <option key={ufSigla} value={ufSigla}>
                       {NOME_ESTADOS[ufSigla] || ufSigla}
                     </option>
@@ -421,9 +533,9 @@ export default function AppScreen({
                   onChange={(e) => setFiltroClasse(e.target.value)}
                 >
                   <option value="todas">Todas as Classes</option>
-                  <option value="A">Classe A</option>
-                  <option value="B">Classe B</option>
-                  <option value="C">Classe C</option>
+                  {['A', 'B', 'C'].filter(cls => classesDisponiveis.includes(cls) || cls === filtroClasse.toUpperCase()).map((cls) => (
+                    <option key={cls} value={cls}>Classe {cls}</option>
+                  ))}
                 </select>
               </div>
               {state.abaAtiva === 'monitoramento' && (
@@ -452,7 +564,7 @@ export default function AppScreen({
                       onChange={(e) => setFiltroGrupo(e.target.value)}
                     >
                       <option value="todas">Todas as cidades</option>
-                      {Array.from(new Set(materiaisDoEstado.map((m) => padronizarNomeCidade(m.grupo || '')).filter(Boolean))).sort().map((cityName) => (
+                      {cidadesDisponiveis.map((cityName) => (
                         <option key={cityName} value={cityName}>{cityName}</option>
                       ))}
                     </select>
@@ -466,7 +578,7 @@ export default function AppScreen({
                       onChange={(e) => setFiltroTipo(e.target.value)}
                     >
                       <option value="todos">Todos os materiais</option>
-                      {Array.from(new Set(state.materiais.map((m) => m.descricao))).filter(Boolean).sort().map((d) => (
+                      {tiposDisponiveis.map((d) => (
                         <option key={d} value={d}>{d}</option>
                       ))}
                     </select>

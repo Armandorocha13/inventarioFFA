@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   calcularAcuracidade,
   formatarMoeda,
@@ -52,12 +52,16 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
   const circumference = 2 * Math.PI * radius;
   const dashoffset = circumference - (taxaAcuracidade / 100) * circumference;
 
+  const [filtroSinal, setFiltroSinal] = useState<'todos' | 'negativos' | 'positivos'>('todos');
+  const [filtroTipoContrato, setFiltroTipoContrato] = useState<'todos' | 'ferramenta' | 'sso'>('todos');
+
   const obterUF = (origem: string): string => {
-    const origemUpper = (origem || '').toUpperCase();
-    if (origemUpper === 'ESPIRITO SANTO' || origemUpper === 'ESPÍRITO SANTO') return 'ES';
-    if (origemUpper === 'SÃO PAULO' || origemUpper === 'SAO PAULO') return 'SP';
+    const origemUpper = (origem || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (origemUpper === 'ESPIRITO SANTO') return 'ES';
+    if (origemUpper === 'SAO PAULO') return 'SP';
     if (origemUpper === 'CURITIBA') return 'PR';
-    if (origemUpper === 'MINAS GERAIS') return 'MG';
+    if (['UBERLANDIA', 'VALADARES', 'BELO HORIZONTE', 'JUIZ DE FORA', 'VARGINHA'].includes(origemUpper)) return 'MG';
+    if (origemUpper === 'CAMPO GRANDE') return 'MS';
     return 'RJ';
   };
 
@@ -65,9 +69,9 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     materiais.reduce((map, m) => {
       const city = padronizarNomeCidade(m.grupo || '') || 'OUTRAS';
       const uf = obterUF(m.origem);
-      const key = `${m.descricao}||${city}||${uf}`;
+      const key = `${m.descricao}||${city}||${uf}||${m.contrato || ''}||${m.grupo || ''}`;
       if (!map.has(key)) {
-        map.set(key, { ...m, cidade: city, uf, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
+        map.set(key, { ...m, cidade: city, uf, contrato: m.contrato, grupo: m.grupo, saldoAtual: 0, valorEstoque: 0, idsVinculados: [] });
       }
       const agrupado = map.get(key)!;
       agrupado.saldoAtual += m.saldoAtual;
@@ -86,6 +90,35 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     return 'var(--text-main)';
   }, []);
 
+  const materiaisProcessados = materiaisAnalitico.map((item) => {
+    const fisico = item.idsVinculados.reduce((acc: number, id: number) => {
+      const val = contagens[id]?.novaQtd;
+      return acc + (val !== undefined ? val : 0);
+    }, 0);
+    
+    const totalFisico = fisico * (item.precoUnitario || 0);
+    const totalFinal = totalFisico - item.valorEstoque;
+    
+    return {
+      ...item,
+      fisico,
+      totalFisico,
+      totalFinal
+    };
+  });
+
+  const materiaisFiltrados = materiaisProcessados.filter((item) => {
+    if (filtroSinal === 'negativos' && item.totalFinal >= 0) return false;
+    if (filtroSinal === 'positivos' && item.totalFinal <= 0) return false;
+
+    const cNum = item.contrato || 0;
+    const isFerramenta = [1, 21, 58, 61, 71].includes(cNum);
+    if (filtroTipoContrato === 'ferramenta' && !isFerramenta) return false;
+    if (filtroTipoContrato === 'sso' && isFerramenta) return false;
+
+    return true;
+  });
+
   const exportarAnalitico = useCallback(() => {
     if (typeof window === 'undefined') return;
     const XLSX = (window as unknown as { XLSX?: typeof import('xlsx') }).XLSX;
@@ -94,27 +127,21 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
       return;
     }
 
-    const dados = materiaisAnalitico.map((item, i) => {
-      const fisico = item.idsVinculados.reduce((acc: number, id: number) => {
-        const val = contagens[id]?.novaQtd;
-        return acc + (val !== undefined ? val : 0);
-      }, 0);
-      
-      const totalFisico = fisico * (item.precoUnitario || 0);
-      const totalFinal = totalFisico - item.valorEstoque;
-
+    const dados = materiaisFiltrados.map((item, i) => {
       return {
         '#': i + 1,
         'UF': item.uf || '—',
         'Cidade': item.cidade || '—',
+        'Contrato': item.contrato || '—',
+        'Projeto': item.grupo || '—',
         'Classe': item.classeABC ? `Classe ${item.classeABC}` : '—',
         'Descrição': item.descricao,
         'Saldo Sistêmico': item.saldoAtual,
-        'Saldo Físico': fisico,
+        'Saldo Físico': item.fisico,
         'Preço Unitário': item.precoUnitario,
         'Total Sistêmico (R$)': item.valorEstoque,
-        'Total Físico (R$)': totalFisico,
-        'Diferença Final (R$)': totalFinal,
+        'Total Físico (R$)': item.totalFisico,
+        'Diferença Final (R$)': item.totalFinal,
       };
     });
 
@@ -122,7 +149,7 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Tabela Analítica');
     XLSX.writeFile(wb, `SGI_Tabela_Analitica_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
-  }, [materiaisAnalitico, contagens]);
+  }, [materiaisFiltrados]);
 
   return (
     <div>
@@ -285,16 +312,47 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           })()}
         </div>
       </div>
-
-
-
       {/* Tabela Analítica */}
       <div className="card animate-fade-in" style={{ marginTop: '2rem', background: 'var(--bg-card)', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
-        <h3 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <span>
+        <h3 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <i className="fas fa-list"></i> Tabela Analítica de Materiais
           </span>
-          <button className="btn btn-secondary btn-excel" onClick={exportarAnalitico} style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+
+          {/* Filtros no Header da Tabela */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginLeft: 'auto', marginRight: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Divergência:</span>
+              <select 
+                value={filtroSinal}
+                onChange={(e) => setFiltroSinal(e.target.value as any)}
+                style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-body)', color: 'var(--text-main)', outline: 'none' }}
+              >
+                <option value="todos">Todas</option>
+                <option value="negativos">Negativas (Faltas)</option>
+                <option value="positivos">Positivas (Sobras)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Contrato:</span>
+              <select 
+                value={filtroTipoContrato}
+                onChange={(e) => setFiltroTipoContrato(e.target.value as any)}
+                style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-body)', color: 'var(--text-main)', outline: 'none' }}
+              >
+                <option value="todos">Todos</option>
+                <option value="ferramenta">Ferramental</option>
+                <option value="sso">SSO</option>
+              </select>
+            </div>
+
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, borderLeft: '1px solid var(--border-color)', paddingLeft: '0.75rem' }}>
+              {materiaisFiltrados.length} / {materiaisAnalitico.length} itens
+            </span>
+          </div>
+
+          <button className="btn-excel-mini" onClick={exportarAnalitico}>
             <i className="fas fa-file-excel"></i> Exportar Analítico
           </button>
         </h3>
@@ -314,24 +372,30 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
           <table className="compact-monitor-table" style={{ width: '100%', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 2, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <tr>
-                <th>#</th><th>UF</th><th>Cidade</th><th>Classe</th><th>Descrição</th><th>Saldo Sist.</th><th>Saldo Fís.</th><th>Preço Unit.</th><th>Total Sist.</th><th>Total Fís.</th><th>Total Final</th>
+                <th>#</th>
+                <th>UF</th>
+                <th>Cidade</th>
+                <th>Contrato</th>
+                <th>Projeto</th>
+                <th>Classe</th>
+                <th>Descrição</th>
+                <th>Saldo Sist.</th>
+                <th>Saldo Fís.</th>
+                <th>Preço Unit.</th>
+                <th>Total Sist.</th>
+                <th>Total Fís.</th>
+                <th>Total Final</th>
               </tr>
             </thead>
             <tbody>
-              {materiaisAnalitico.map((item, i) => {
-                const fisico = item.idsVinculados.reduce((acc: number, id: number) => {
-                  const val = contagens[id]?.novaQtd;
-                  return acc + (val !== undefined ? val : 0);
-                }, 0);
-                
-                const totalFisico = fisico * (item.precoUnitario || 0);
-                const totalFinal = totalFisico - item.valorEstoque;
-
+              {materiaisFiltrados.map((item, i) => {
                 return (
-                  <tr key={`${item.descricao}||${item.cidade}||${item.uf}`}>
+                  <tr key={`${item.descricao}||${item.cidade}||${item.uf}||${item.contrato || ''}||${item.grupo || ''}`}>
                     <td><span className="badge" style={{ background: 'var(--text-main)', color: 'var(--bg-body)', padding: '2px 5px', fontSize: '0.6rem' }}>#{i + 1}</span></td>
                     <td><span className="badge" style={{ background: 'var(--primary)', color: '#fff', fontWeight: 700, padding: '2px 5px', fontSize: '0.6rem' }}>{item.uf}</span></td>
                     <td title={item.cidade} style={{ textTransform: 'uppercase', fontWeight: 600 }}>{truncarTexto(item.cidade, 12)}</td>
+                    <td style={{ fontWeight: 600 }}>{item.contrato || '—'}</td>
+                    <td title={item.grupo} style={{ fontWeight: 600 }}>{truncarTexto(item.grupo || '—', 18)}</td>
                     <td>
                       {item.classeABC ? (
                         <span className="badge" style={{ 
@@ -349,13 +413,13 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
                     <td title={item.descricao} style={{ fontWeight: 600 }}>{truncarTexto(item.descricao, 32)}</td>
                     <td><span className={`badge ${getBadgeClass(item.saldoAtual)}`}>{item.saldoAtual}</span></td>
                     <td>
-                      <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{fisico}</span>
+                      <span className="badge" style={{ background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>{item.fisico}</span>
                     </td>
                     <td>{formatarMoeda(item.precoUnitario)}</td>
                     <td style={{ fontWeight: 600 }}>{formatarMoeda(item.valorEstoque)}</td>
-                    <td style={{ fontWeight: 600 }}>{formatarMoeda(totalFisico)}</td>
-                    <td style={{ fontWeight: 600, color: getImpactoColor(totalFinal) }}>
-                      {formatarMoeda(totalFinal)}
+                    <td style={{ fontWeight: 600 }}>{formatarMoeda(item.totalFisico)}</td>
+                    <td style={{ fontWeight: 600, color: getImpactoColor(item.totalFinal) }}>
+                      {formatarMoeda(item.totalFinal)}
                     </td>
                   </tr>
                 );
@@ -363,35 +427,15 @@ export default function TabMonitoramento({ materiais, contagens }: TabMonitorame
             </tbody>
             <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2, boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' }}>
               <tr style={{ background: 'var(--bg-card)', borderTop: '2px solid var(--border-color)' }}>
-                <td colSpan={8} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
+                <td colSpan={10} style={{ textAlign: 'right', fontWeight: 800 }}>TOTAL GERAL</td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
-                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => acc + item.valorEstoque, 0))}
+                  {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + item.valorEstoque, 0))}
                 </td>
                 <td style={{ fontWeight: 800, color: 'var(--text-main)' }}>
-                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
-                    const f = item.idsVinculados.reduce((sum: number, id: number) => {
-                      const val = contagens[id]?.novaQtd;
-                      return sum + (val !== undefined ? val : 0);
-                    }, 0);
-                    return acc + (f * (item.precoUnitario || 0));
-                  }, 0))}
+                  {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + item.totalFisico, 0))}
                 </td>
-                <td style={{ fontWeight: 800, color: getImpactoColor(materiaisAnalitico.reduce((acc, item) => {
-                  const f = item.idsVinculados.reduce((sum: number, id: number) => {
-                    const val = contagens[id]?.novaQtd;
-                    return sum + (val !== undefined ? val : 0);
-                  }, 0);
-                  const tFisico = f * (item.precoUnitario || 0);
-                  return acc + (tFisico - item.valorEstoque);
-                }, 0)) }}>
-                  {formatarMoeda(materiaisAnalitico.reduce((acc, item) => {
-                    const f = item.idsVinculados.reduce((sum: number, id: number) => {
-                      const val = contagens[id]?.novaQtd;
-                      return sum + (val !== undefined ? val : 0);
-                    }, 0);
-                    const tFisico = f * (item.precoUnitario || 0);
-                    return acc + (tFisico - item.valorEstoque);
-                  }, 0))}
+                <td style={{ fontWeight: 800, color: getImpactoColor(materiaisFiltrados.reduce((acc, item) => acc + item.totalFinal, 0)) }}>
+                  {formatarMoeda(materiaisFiltrados.reduce((acc, item) => acc + item.totalFinal, 0))}
                 </td>
               </tr>
             </tfoot>

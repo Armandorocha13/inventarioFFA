@@ -2,6 +2,7 @@
 // Registra as aplicadas em `_migrations` para ser idempotente.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { abrirBanco, DB_PATH, MIGRATIONS_DIR } from './_db.mjs';
 
 export function migrate() {
@@ -41,6 +42,7 @@ export function migrate() {
   console.log(`Banco: ${DB_PATH}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   migrate();
 }
+

@@ -1151,7 +1151,42 @@ tr.linha-divergente {
 }
 
 .btn-excel:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: #0e6c38;
+  box-shadow: 0 4px 12px rgba(16, 124, 65, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-excel-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 4px 8px !important;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem !important;
+  cursor: pointer;
+  border: 1px solid #107c41;
+  background: transparent;
+  color: #107c41;
+  border-radius: 6px;
+  transition: var(--transition);
+  text-transform: none;
+  height: 24px;
+}
+
+[data-tema="escuro"] .btn-excel-mini {
+  color: #22c55e;
+  border-color: #22c55e;
+}
+
+.btn-excel-mini:hover {
+  background: #107c41;
+  color: #ffffff;
+}
+
+[data-tema="escuro"] .btn-excel-mini:hover {
+  background: #22c55e;
+  color: #000000;
 }
 
 /* Badge de Rascunho Salvo Localmente */

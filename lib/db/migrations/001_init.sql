@@ -17,28 +17,26 @@ CREATE TABLE IF NOT EXISTS de_para_itens (
 
 CREATE TABLE IF NOT EXISTS saldo_estoque (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  tipo_saldo          TEXT,
-  grupo_codigo        TEXT,
+  data                TEXT,
+  origem              TEXT,
+  contrato            INTEGER,
   grupo               TEXT,
   codmat              TEXT,
   descricao           TEXT,
-  descricao_auxiliar  TEXT,
-  unid                TEXT,
-  codcpl              TEXT,
-  cod_cpl_auxiliar    TEXT,
+  unidade             TEXT,
   saldo_estoque       REAL,
-  prog_rm             REAL,
-  prog_tm             REAL,
   saldo_disponivel    REAL,
   valor               REAL,
-  cod_grupo_material  TEXT,
-  grupo_material      TEXT
+  total_real          REAL,
+  classe_abc          TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_saldo_estoque_grupo_codmat
   ON saldo_estoque (grupo, codmat);
-CREATE INDEX IF NOT EXISTS idx_saldo_estoque_grupo_codigo
-  ON saldo_estoque (grupo_codigo);
+CREATE INDEX IF NOT EXISTS idx_saldo_estoque_contrato
+  ON saldo_estoque (contrato);
+CREATE INDEX IF NOT EXISTS idx_saldo_estoque_origem
+  ON saldo_estoque (origem);
 
 CREATE TABLE IF NOT EXISTS progresso_contagem (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,

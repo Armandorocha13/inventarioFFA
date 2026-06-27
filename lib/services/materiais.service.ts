@@ -45,6 +45,7 @@ interface MaterialRow {
   unidade: string | null;
   saldoAtual: string | number | null;
   precoUnitario: string | number | null;
+  classeABC: string | null;
   ultimaAtualizacao?: string | null;
   ultimaContagemFisica: string | number | null;
 }
@@ -54,6 +55,11 @@ function normalizarUpper(s: string): string {
 }
 
 function aplicarCurvaABC(materiais: Material[]): Material[] {
+  // Se todos os materiais já vierem com classeABC do banco, retornamos direto
+  if (materiais.every((m) => m.classeABC)) {
+    return materiais;
+  }
+
   const comValor = materiais.map((m) => ({
     material: m,
     valor: (m.saldoAtual || 0) * (m.precoUnitario || 0),
@@ -65,9 +71,11 @@ function aplicarCurvaABC(materiais: Material[]): Material[] {
   comValor.forEach((x) => {
     acumulado += x.valor;
     const pct = total > 0 ? acumulado / total : 0;
-    if (pct <= 0.8) x.material.classeABC = 'A';
-    else if (pct <= 0.95) x.material.classeABC = 'B';
-    else x.material.classeABC = 'C';
+    if (!x.material.classeABC) {
+      if (pct <= 0.8) x.material.classeABC = 'A';
+      else if (pct <= 0.95) x.material.classeABC = 'B';
+      else x.material.classeABC = 'C';
+    }
   });
 
   return comValor.map((x) => x.material);
@@ -139,6 +147,7 @@ export async function listarMateriais(params: ListarMateriaisParams): Promise<Ma
       id: row.id,
       origem: row.origem ? row.origem.trim() : '',
       grupo: row.grupo ? row.grupo.trim() : '',
+      contrato: row.contrato != null ? parseInt(String(row.contrato), 10) : undefined,
       codmat: row.codmat ? row.codmat.trim() : '',
       descricao: row.descricao ? row.descricao.trim() : '',
       unidade: row.unidade ? row.unidade.trim() : '',
@@ -146,7 +155,7 @@ export async function listarMateriais(params: ListarMateriaisParams): Promise<Ma
       precoUnitario,
       ultimaAtualizacao: row.ultimaAtualizacao ?? new Date().toISOString(),
       ultimaContagemFisica,
-      classeABC: null,
+      classeABC: row.classeABC ? row.classeABC.trim() : null,
     });
   });
 

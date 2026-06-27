@@ -177,7 +177,7 @@ export function padronizarNomeCidade(grupoOriginal: string): string {
   if (ALIAS_CIDADE[semPrefixo]) return ALIAS_CIDADE[semPrefixo];
 
   // 5. Redirecionamentos para subgrupos interestaduais conhecidos
-  if (nome === 'SP' || nome === 'SAO PAULO' || nome === 'SÃO PAULO') return 'SAO PAULO';
+  if (nome.includes('SP') || nome.includes('SAO PAULO') || nome.includes('SÃO PAULO')) return 'SAO PAULO';
   if (nome === 'ESPIRITO SANTO' || nome === 'ES') return 'ESPIRITO SANTO';
   if (nome.includes('PR') || nome.includes('PARANA') || nome.includes('CURITIBA') || nome.includes('LIGGA')) return 'CURITIBA';
   if (nome.includes('BH') || nome.includes('BELO HORIZONTE') || nome.includes('MINAS') || nome.includes('MG')) return 'BELO HORIZONTE';
