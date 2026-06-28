@@ -11,7 +11,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:reset": "node scripts/reset.mjs",
-    "db:migrate:prod": "node scripts/migrate-pg.mjs"
+    "db:migrate:prod": "node scripts/migrate-pg.mjs",
+    "db:seed:prod": "node scripts/seed-pg.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
